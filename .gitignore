@@ -1,3 +1,17 @@
-node_modules
+# dot files
 .env
 .DS_Store
+
+# DB locale
+db.json
+
+# CSV generati
+CSV/
+
+# Log vari
+*.log
+
+# Node.js standard
+node_modules/
+dist/
+
