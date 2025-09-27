@@ -1,6 +1,6 @@
 # Emmelibri EUDR PoC
 
-Proof of Concept per la gestione di **DDS (Due Diligence Statements)** tramite API TRACES, con mock server, ingestione CSV, salvataggio su DB locale ed export ai clienti.
+Proof of Concept per la gestione di **DDS (Due Diligence Statements)** tramite API TRACES, con mock server, ingestione CSV, creazione DDS TRADER e export verso i clienti.
 
 ---
 
@@ -8,40 +8,47 @@ Proof of Concept per la gestione di **DDS (Due Diligence Statements)** tramite A
 
 - **Mock TRACES API** (`src/mockServer.js`):
   - Endpoint `/token`, `/dds/submit`, `/dds/:ref`, `/dds/:ref/retract`.
-  - Precaricate 30 DDS in vari stati (`VALID`, `SUBMITTED`, `RETRACTED`, `AMENDED`).
+  - DDS precaricate in vari stati (`VALID`, `SUBMITTED`, `RETRACTED`, `AMENDED`).
 
 - **Ingestione dati** (`src/ingest.js`):
   - Legge un CSV con colonne:
     - `EAN` (titolo)
     - `referenceNumber`, `verificationNumber` (DDS)
     - `netWeightKG` (peso in kg)
-  - Valida le DDS interrogando il mock.
+  - Valida le DDS interrogando il mock server.
   - Crea una DDS **TRADER** intestata a *EMMELIBRI*, con `associatedStatements` deduplicati.
 
 - **DB locale** (`db.json`, escluso da Git tramite `.gitignore`):
   - Gestito via [`lowdb`](https://www.npmjs.com/package/lowdb).
-  - Tiene lo storico: timestamp, CSV usato, DDS TRADER creata e DDS validate.
+  - Tiene lo storico: timestamp, file CSV di input, DDS validate, DDS TRADER create.
 
 - **Generazione CSV casuali** (`src/generateCSV.js`):
-  - Crea file con 15–30 righe.
-  - Relazioni molti-a-molti: stesso EAN con più DDS, stessa DDS con più EAN.
+  - Genera file con 15–30 righe, relazioni molti-a-molti (stesso EAN con più DDS, stessa DDS con più EAN).
   - Salvati nella cartella `CSV/` (ignorata da Git).
 
 - **Orchestratore** (`src/run.js`):
-  - Genera CSV casuale.
+  - Genera un CSV casuale.
   - Esegue ingest, validazione e creazione DDS TRADER.
   - Salva tutto in `db.json`.
   - Opzione `--reset` per azzerare il DB prima della run.
 
 - **Storico a console** (`src/showRecords.js`):
-  - Mostra tutti i record del DB in formato tabellare.
-  - Riporta anche il nome del CSV di input.
+  - Mostra lo storico delle run in formato tabellare.
+  - Indica anche il CSV di input utilizzato.
 
-- **Export ai clienti** (`src/exportForClients.js`):
-  - Usa l’anagrafica `clients.json` (esempio: Amazon, Feltrinelli, IE, Ubik, Esselunga).
-  - Per ogni cliente genera un file in `EXPORT/`:
-    - Se formato = `CSV` → tabella `EAN,TraderDDS,OperatorCode,OperatorName`
-    - Se formato = `ONIX` → XML ONIX 3 con namespace proprietario `eudr:`
+- **Export per clienti** (`src/exportForClients.js`):
+  - Supporta due modalità di output:
+    - **CSV** → `EAN, TraderReferenceNumber, TraderVerificationNumber`
+    - **ONIX (XML)** → con estensione `eudr:DDSInfo`
+  - I file generati vengono salvati in `EXPORT/` (ignorata da Git).
+
+- **Schema di validazione XSD** (`schemas/eudr-extension.xsd`):
+  - Namespace: `http://www.emmelibri.it/eudr`
+  - Definisce l’elemento `<eudr:DDSInfo>` con:
+    - `ReferenceNumber`
+    - `VerificationNumber`
+    - `NetWeightKG` (opzionale)
+  - Usato per validare gli XML ONIX esportati.
 
 ---
 
@@ -72,9 +79,10 @@ Proof of Concept per la gestione di **DDS (Due Diligence Statements)** tramite A
    node src/showRecords.js
    ```
 
-5. Esegui export per i clienti (CSV/ONIX):
+5. Genera export per i clienti:
    ```bash
-   node src/exportForClients.js
+   node src/exportForClients.js --csv
+   node src/exportForClients.js --onix
    ```
 
 ---
@@ -83,27 +91,25 @@ Proof of Concept per la gestione di **DDS (Due Diligence Statements)** tramite A
 
 ```
 emmelibri-eudr-poc/
-├── clients.json          # anagrafica clienti
-├── CSV/                  # CSV di input (test) – ignorati da Git
-├── db.json               # DB locale – ignorato da Git
-├── EXPORT/               # export per clienti – ignorati da Git
+├── CSV/                  # CSV di input generati (ignorati da Git)
+├── EXPORT/               # Export per i clienti (ignorati da Git)
+├── db.json               # DB locale (ignorato da Git)
+├── schemas/
+│   └── eudr-extension.xsd # Schema XSD per estensione ONIX con eudr:DDSInfo
 ├── package.json
 └── src/
-    ├── mockServer.js     # Mock API TRACES
-    ├── ingest.js         # Ingestione CSV, validazione DDS, creazione TRADER DDS
-    ├── db.js             # Gestione DB locale (lowdb)
-    ├── generateCSV.js    # Generatore CSV casuali
-    ├── run.js            # Orchestratore
-    ├── showRecords.js    # Storico a console
-    └── exportForClients.js # Export per clienti (CSV/ONIX)
+    ├── mockServer.js       # Mock API TRACES
+    ├── ingest.js           # Ingestione CSV, validazione DDS, creazione TRADER DDS
+    ├── db.js               # Gestione DB locale (lowdb)
+    ├── generateCSV.js      # Generatore CSV casuali
+    ├── run.js              # Orchestratore pipeline
+    ├── showRecords.js      # Storico a console
+    └── exportForClients.js # Export clienti (CSV o ONIX)
 ```
 
 ---
 
 ## ⚠️ Note importanti
 
-- `db.json`, `CSV/` e `EXPORT/` sono **locali** e non vengono pushati su GitHub (vedi `.gitignore`).  
-- Quando in futuro verranno ricevute le credenziali reali per TRACES, sarà necessario:
-  - gestire il **codice operatore DDS**,  
-  - estendere il namespace ONIX e il tracciato CSV per includere il mittente,  
-  - preparare DDS “fake” in TRACES (come editori) per test end-to-end.
+- `db.json`, `CSV/` e `EXPORT/` sono **locali** e non vengono mai pushati su GitHub (vedi `.gitignore`).  
+- Quando saranno disponibili le credenziali reali TRACES, sarà necessario introdurre il supporto al **codice proprietario della DDS** nelle chiamate API e alle strutture XML e CSV esportate verso i clienti.
