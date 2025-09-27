@@ -21,7 +21,6 @@ uploads/
 # ---- Frontend: build e dipendenze ----
 frontend/dist/
 frontend/node_modules/
-frontend/uploads/
 frontend/.DS_Store
 
 # ---- Log vari ----
