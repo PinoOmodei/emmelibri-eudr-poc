@@ -111,6 +111,58 @@ export async function createTraderDDS(validatedRecords, apiBase = "http://localh
     return data;
 }
 
+// -- pipeline di acquisizione, validazione e generazione
+export async function ingestFile(filePath, apiBase = "http://localhost:3000") {
+    // 1. Ingestione CSV
+    const records = await ingestCSV(filePath);
+
+    // 2. Validazione DDS
+    const validated = await validateDDS(records, apiBase);
+
+    // 3. Creazione DDS TRADER
+    const traderDDS = await createTraderDDS(validated, apiBase);
+
+    // 4. Salvataggio su DB (se creata)
+    if (traderDDS) {
+        await initDB();
+        await saveRecord({
+            timestamp: new Date().toISOString(),
+            traderDDS,
+            validated
+        });
+    }
+
+    // 5. Ritorna il risultato
+    return { validated, traderDDS };
+}
+
+// --- Separazione della pipeline in step separati ---
+// Step 1: ingest solo CSV
+export async function ingestOnly(filePath) {
+  const records = await ingestCSV(filePath);
+  return records;
+}
+
+// Step 2: validate DDS
+export async function validateOnly(records, apiBase = "http://localhost:3000") {
+  return await validateDDS(records, apiBase);
+}
+
+// Step 3: create trader DDS
+export async function createTraderOnly(validated, apiBase = "http://localhost:3000") {
+  const traderDDS = await createTraderDDS(validated, apiBase);
+  if (traderDDS) {
+    await initDB();
+    await saveRecord({
+      timestamp: new Date().toISOString(),
+      traderDDS,
+      validated
+    });
+  }
+  return traderDDS;
+}
+
+
 // ---- Demo standalone ----
 if (process.argv[1].includes("ingest.js")) {
     const file = process.argv[2] || "input.csv";

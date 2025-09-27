@@ -1,131 +1,78 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { initDB, getRecords } from "./db.js";
 
-// Carica anagrafica clienti
-function loadClients(file = "clients.json") {
-  const raw = fs.readFileSync(file, "utf-8");
-  return JSON.parse(raw).clients;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 📂 cartella export
+const EXPORT_DIR = path.join(__dirname, "..", "EXPORT");
+if (!fs.existsSync(EXPORT_DIR)) {
+  fs.mkdirSync(EXPORT_DIR);
 }
 
-// Estrae mapping EAN → DDS da db.json
-function buildEanDDSMap(records) {
-  const map = {};
-
-  for (const rec of records) {
-    const operatorCode =
-      rec.traderDDS?.operator?.operatorCode || "IT-EMMELIBRI-001";
-    const operatorName =
-      rec.traderDDS?.operator?.nameAndAddress?.name || "Emmelibri S.p.A.";
-
-    for (const v of rec.validated) {
-      if (v.validation === "VALIDA") {
-        if (!map[v.ean]) {
-          map[v.ean] = {
-            ean: v.ean,
-            ddsList: [],
-            operatorCode,
-            operatorName,
-          };
-        }
-        const ddsKey = `${v.referenceNumber}+${v.verificationNumber}`;
-        if (!map[v.ean].ddsList.includes(ddsKey)) {
-          map[v.ean].ddsList.push(ddsKey);
-        }
-      }
-    }
-  }
-  return Object.values(map);
-}
-
-// Export in CSV
-function exportCSV(client, data, folder = "EXPORT") {
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder);
-
-  const filename = path.join(folder, `${client.code}_${Date.now()}.csv`);
-  const header = "EAN,TraderDDS,OperatorCode,OperatorName\n";
-
-  const rows = data.map(
-    (item) =>
-      `${item.ean},"${item.ddsList.join(
-        ";"
-      )}",${item.operatorCode},"${item.operatorName}"`
-  );
-
-  fs.writeFileSync(filename, header + rows.join("\n"), "utf-8");
-  console.log(`✅ Export CSV creato per ${client.name}: ${filename}`);
-}
-
-// Export in ONIX (con namespace EUDR)
-function exportONIX(client, data, folder = "EXPORT") {
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder);
-
-  const filename = path.join(folder, `${client.code}_${Date.now()}.xml`);
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<ONIXMessage release="3.0"\n`;
-  xml += `  xmlns="http://ns.editeur.org/onix/3.0/reference"\n`;
-  xml += `  xmlns:eudr="http://www.emmelibri.it/eudr">\n`;
-
-  xml += `  <Header>\n`;
-  xml += `    <Sender>\n`;
-  xml += `      <SenderName>EMMELIBRI</SenderName>\n`;
-  xml += `      <ContactName>Pino Omodei</ContactName>\n`;
-  xml += `      <EmailAddress>pino.omodei@meli.it</EmailAddress>\n`;
-  xml += `    </Sender>\n`;
-  xml += `    <SentDateTime>${new Date().toISOString()}</SentDateTime>\n`;
-  xml += `  </Header>\n\n`;
-
-  for (const item of data) {
-    xml += `  <Product>\n`;
-    xml += `    <ProductIdentifier>\n`;
-    xml += `      <ProductIDType>15</ProductIDType>\n`;
-    xml += `      <IDValue>${item.ean}</IDValue>\n`;
-    xml += `    </ProductIdentifier>\n`;
-    xml += `    <eudr:EUDRData>\n`;
-    xml += `      <eudr:TraderOperator>\n`;
-    xml += `        <eudr:OperatorCode>${item.operatorCode}</eudr:OperatorCode>\n`;
-    xml += `        <eudr:OperatorName>${item.operatorName}</eudr:OperatorName>\n`;
-    xml += `      </eudr:TraderOperator>\n`;
-    xml += `      <eudr:TraderDDSList>\n`;
-    for (const dds of item.ddsList) {
-      xml += `        <eudr:TraderDDS>${dds}</eudr:TraderDDS>\n`;
-    }
-    xml += `      </eudr:TraderDDSList>\n`;
-    xml += `    </eudr:EUDRData>\n`;
-    xml += `  </Product>\n\n`;
-  }
-
-  xml += `</ONIXMessage>\n`;
-
-  fs.writeFileSync(filename, xml, "utf-8");
-  console.log(`✅ Export ONIX creato per ${client.name}: ${filename}`);
-}
-
-async function main() {
+// Funzione: export CSV
+export async function exportCSV() {
   await initDB();
   const records = await getRecords();
+  if (!records.length) throw new Error("Nessun record trovato nel DB");
 
-  if (records.length === 0) {
-    console.log("⚠️ Nessun record disponibile in db.json, impossibile esportare.");
-    return;
-  }
+  const lastRun = records[records.length - 1];
+  const lines = ["EAN,TraderReferenceNumber,TraderVerificationNumber"];
+  lastRun.validated.forEach((row) => {
+    lines.push(`${row.EAN},${lastRun.traderDDS.referenceNumber},${lastRun.traderDDS.verificationNumber}`);
+  });
 
-  const clients = loadClients();
-  const data = buildEanDDSMap(records);
-
-  for (const client of clients) {
-    if (client.format === "CSV") {
-      exportCSV(client, data);
-    } else if (client.format === "ONIX") {
-      exportONIX(client, data);
-    } else {
-      console.log(`Formato non supportato per ${client.name}: ${client.format}`);
-    }
-  }
+  const fileName = `export_${Date.now()}.csv`;
+  const filePath = path.join(EXPORT_DIR, fileName);
+  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return filePath;
 }
 
-main().catch((err) => {
-  console.error("Errore exportForClients:", err);
-  process.exit(1);
-});
+// Funzione: export ONIX (XML semplificato + estensione eudr:)
+export async function exportONIX() {
+  await initDB();
+  const records = await getRecords();
+  if (!records.length) throw new Error("Nessun record trovato nel DB");
+
+  const lastRun = records[records.length - 1];
+  const items = lastRun.validated
+    .map((row) => {
+      return `
+    <Product xmlns:eudr="http://www.emmelibri.it/eudr">
+      <RecordReference>${row.EAN}</RecordReference>
+      <eudr:DDSInfo>
+        <eudr:ReferenceNumber>${lastRun.traderDDS.referenceNumber}</eudr:ReferenceNumber>
+        <eudr:VerificationNumber>${lastRun.traderDDS.verificationNumber}</eudr:VerificationNumber>
+        <eudr:NetWeightKG>${row.netWeightKG || 0}</eudr:NetWeightKG>
+      </eudr:DDSInfo>
+    </Product>`;
+    })
+    .join("\n");
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage xmlns="http://ns.editeur.org/onix/3.0/reference"
+             xmlns:eudr="http://www.emmelibri.it/eudr"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.emmelibri.it/eudr schemas/eudr-extension.xsd">
+  ${items}
+</ONIXMessage>`;
+
+  const fileName = `export_${Date.now()}.xml`;
+  const filePath = path.join(EXPORT_DIR, fileName);
+  fs.writeFileSync(filePath, xml, "utf8");
+  return filePath;
+}
+
+// Modalità CLI (manteniamo compatibilità)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const mode = process.argv[2];
+  if (mode === "--csv") {
+    exportCSV().then((f) => console.log(`✅ Export CSV creato: ${f}`));
+  } else if (mode === "--onix") {
+    exportONIX().then((f) => console.log(`✅ Export ONIX creato: ${f}`));
+  } else {
+    console.log("Uso: node src/exportForClients.js --csv | --onix");
+  }
+}

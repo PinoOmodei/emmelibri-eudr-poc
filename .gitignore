@@ -16,5 +16,10 @@ EXPORT/
 
 # Node.js standard
 node_modules/
+npm-debug.log
 dist/
+
+# Build frontend
+frontend/dist/
+frontend/node_modules/
 
