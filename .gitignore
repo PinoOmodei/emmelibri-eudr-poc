@@ -1,25 +1,30 @@
-# dot files
+# ---- Node.js ----
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# ---- Config e ambienti ----
 .env
 .DS_Store
 
-# DB locale
+# ---- Backend: file locali ----
 db.json
-
-# CSV generati
 CSV/
-
-# EXPORT generati
 EXPORT/
+input.csv
+records.json
+validated.json
+clients.json
+uploads/
 
-# Log vari
-*.log
-
-# Node.js standard
-node_modules/
-npm-debug.log
-dist/
-
-# Build frontend
+# ---- Frontend: build e dipendenze ----
 frontend/dist/
 frontend/node_modules/
+frontend/.DS_Store
 
+# ---- Log vari ----
+*.log
+
+# ---- Sistema operativo ----
+Thumbs.db
