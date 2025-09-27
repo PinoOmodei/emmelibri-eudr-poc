@@ -8,6 +8,9 @@ db.json
 # CSV generati
 CSV/
 
+# EXPORT generati
+EXPORT/
+
 # Log vari
 *.log
 

@@ -1,0 +1,29 @@
+{
+  "clients": [
+    {
+      "code": "CL001",
+      "name": "AMAZON",
+      "format": "ONIX"
+    },
+    {
+      "code": "CL002",
+      "name": "FELTRINELLI",
+      "format": "CSV"
+    },
+    {
+      "code": "CL003",
+      "name": "IE",
+      "format": "ONIX"
+    },
+    {
+      "code": "CL004",
+      "name": "UBIK",
+      "format": "CSV"
+    },
+    {
+      "code": "CL005",
+      "name": "ESSELUNGA",
+      "format": "CSV"
+    }
+  ]
+}
