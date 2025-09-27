@@ -21,7 +21,7 @@ export async function exportCSV() {
   const lastRun = records[records.length - 1];
   const lines = ["EAN,TraderReferenceNumber,TraderVerificationNumber"];
   lastRun.validated.forEach((row) => {
-    lines.push(`${row.EAN},${lastRun.traderDDS.referenceNumber},${lastRun.traderDDS.verificationNumber}`);
+    lines.push(`${row.ean},${lastRun.traderDDS.referenceNumber},${lastRun.traderDDS.verificationNumber}`);
   });
 
   const fileName = `export_${Date.now()}.csv`;
@@ -41,7 +41,7 @@ export async function exportONIX() {
     .map((row) => {
       return `
     <Product xmlns:eudr="http://www.emmelibri.it/eudr">
-      <RecordReference>${row.EAN}</RecordReference>
+      <RecordReference>${row.ean}</RecordReference>
       <eudr:DDSInfo>
         <eudr:ReferenceNumber>${lastRun.traderDDS.referenceNumber}</eudr:ReferenceNumber>
         <eudr:VerificationNumber>${lastRun.traderDDS.verificationNumber}</eudr:VerificationNumber>

@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import { parse } from "csv-parse";
 import axios from "axios";
 import { initDB, saveRecord } from "./db.js";
@@ -128,7 +129,8 @@ export async function ingestFile(filePath, apiBase = "http://localhost:3000") {
         await saveRecord({
             timestamp: new Date().toISOString(),
             traderDDS,
-            validated
+            validated,
+            inputFile: path.basename(filePath) // 👈 aggiunto
         });
     }
 
@@ -139,27 +141,27 @@ export async function ingestFile(filePath, apiBase = "http://localhost:3000") {
 // --- Separazione della pipeline in step separati ---
 // Step 1: ingest solo CSV
 export async function ingestOnly(filePath) {
-  const records = await ingestCSV(filePath);
-  return records;
+    const records = await ingestCSV(filePath);
+    return records;
 }
 
 // Step 2: validate DDS
 export async function validateOnly(records, apiBase = "http://localhost:3000") {
-  return await validateDDS(records, apiBase);
+    return await validateDDS(records, apiBase);
 }
 
 // Step 3: create trader DDS
 export async function createTraderOnly(validated, apiBase = "http://localhost:3000") {
-  const traderDDS = await createTraderDDS(validated, apiBase);
-  if (traderDDS) {
-    await initDB();
-    await saveRecord({
-      timestamp: new Date().toISOString(),
-      traderDDS,
-      validated
-    });
-  }
-  return traderDDS;
+    const traderDDS = await createTraderDDS(validated, apiBase);
+    if (traderDDS) {
+        await initDB();
+        await saveRecord({
+            timestamp: new Date().toISOString(),
+            traderDDS,
+            validated
+        });
+    }
+    return traderDDS;
 }
 
 
