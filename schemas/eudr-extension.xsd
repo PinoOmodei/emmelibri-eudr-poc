@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.emmelibri.it/eudr"
+           xmlns:eudr="http://www.emmelibri.it/eudr"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- Nodo estensione da inserire dentro <Product> ONIX -->
+  <xs:element name="DDSInfo" type="eudr:DDSInfoType"/>
+
+  <!-- Tipo complesso con i dati minimi richiesti -->
+  <xs:complexType name="DDSInfoType">
+    <xs:sequence>
+      <!-- Riferimento DDS creato da Emmelibri come trader -->
+      <xs:element name="ReferenceNumber" type="xs:string"/>
+      <xs:element name="VerificationNumber" type="xs:string"/>
+      <!-- Peso netto espresso in KG (opzionale) -->
+      <xs:element name="NetWeightKG" type="xs:decimal" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>
