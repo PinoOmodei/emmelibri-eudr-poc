@@ -37,6 +37,26 @@ app.get("/records", async (req, res) => {
   res.json(records);
 });
 
+// EXPORT (CSV o ONIX) con gestione errore
+app.get("/export/:type", async (req, res) => {
+  try {
+    let filePath;
+    if (req.params.type === "csv") {
+      filePath = await exportCSV();
+    } else if (req.params.type === "onix") {
+      filePath = await exportONIX();
+    } else {
+      throw new Error("Formato export non supportato");
+    }
+
+    res.download(filePath);
+  } catch (err) {
+    console.error("Errore export:", err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/* Versioni vecchie endpoin export ... senza gestione errori
 // Export CSV
 app.get("/export/csv", async (req, res) => {
   const filePath = await exportCSV();
@@ -48,6 +68,7 @@ app.get("/export/onix", async (req, res) => {
   const filePath = await exportONIX();
   res.download(filePath);
 });
+*/
 
 // Ingest (solo parse CSV)
 app.post("/ingest", upload.single("file"), async (req, res) => {

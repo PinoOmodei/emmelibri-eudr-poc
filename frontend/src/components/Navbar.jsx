@@ -6,12 +6,15 @@ export default function Navbar({ onNavigate, current }) {
   ];
 
   return (
-    <nav className="bg-blue-600 text-white p-4 flex gap-6">
-      {tabs.map((tab) => (
+    <nav className="bg-brand text-white px-6 py-3 flex gap-8 shadow-md rounded-b-lg">
+     {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onNavigate(tab.key)}
-          className={`hover:underline ${current === tab.key ? "font-bold underline" : ""}`}
+          className={`transition-colors duration-200 ${current === tab.key
+              ? "font-semibold underline underline-offset-4"
+              : "hover:text-gray-200"
+            }`}
         >
           {tab.label}
         </button>

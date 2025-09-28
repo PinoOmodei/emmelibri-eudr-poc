@@ -2,59 +2,109 @@ import { useState } from "react";
 
 export default function ExportPage() {
   const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleExport = (type) => {
-    window.open(`/api/export/${type}`, "_blank");
+  const handleExport = async (type) => {
+    setLoading(true);
+    try {
+      // download diretto, niente fetch/json
+      window.open(`/api/export/${type}`, "_blank");
+      showToast(`Export ${type.toUpperCase()} avviato`);
+    } catch (err) {
+      showToast("Errore durante l'export: " + err.message);
+    } finally {
+      // Ritardo per simulare "processing"
+      // setLoading(false)
+      setTimeout(() => setLoading(false), 2000);
+    }
   };
 
   const handleReset = async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/reset", { method: "POST" });
       const data = await res.json();
       showToast(data.message || "Reset completato");
     } catch (err) {
       showToast("Errore durante il reset del DB: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const showToast = (message) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000); // toast visibile per 3s
+    setTimeout(() => setToast(null), 3000);
   };
 
   return (
-    <div className="relative">
-      <h1 className="text-xl font-bold mb-4">Export per Clienti</h1>
-      <div className="flex gap-4">
+    <div className="max-w-3xl mx-auto relative">
+      <h1 className="text-2xl font-bold mb-6 text-brand">Export per Clienti</h1>
+
+      <div className="flex gap-4 mb-6">
         <button
           onClick={() => handleExport("csv")}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          disabled={loading}
+          className={`px-5 py-2 rounded-lg text-white transition-colors duration-200 ${loading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-green-600 hover:bg-green-700"
+            }`}
         >
-          Scarica CSV
+          {loading ? "Elaborazione..." : "Scarica CSV"}
         </button>
         <button
           onClick={() => handleExport("onix")}
-          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+          disabled={loading}
+          className={`px-5 py-2 rounded-lg text-white transition-colors duration-200 ${loading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-purple-600 hover:bg-purple-700"
+            }`}
         >
-          Scarica ONIX (XML)
+          {loading ? "Elaborazione..." : "Scarica ONIX (XML)"}
         </button>
-      </div>
-
-      <div className="mt-6">
         <button
           onClick={handleReset}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          disabled={loading}
+          className={`px-5 py-2 rounded-lg text-white transition-colors duration-200 ${loading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-red-600 hover:bg-red-700"
+            }`}
         >
-          Reset DB
+          {loading ? "Elaborazione..." : "Reset DB"}
         </button>
       </div>
 
+      {loading && (
+        <div className="flex items-center gap-2 text-brand mb-4">
+          <svg
+            className="animate-spin h-5 w-5 text-brand"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            ></path>
+          </svg>
+          <span>Elaborazione in corso...</span>
+        </div>
+      )}
+
       {toast && (
-        <div className="fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2 rounded shadow-lg animate-fade-in">
+        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-md animate-fade-in">
           {toast}
         </div>
       )}
     </div>
   );
 }
-
