@@ -1,12 +1,13 @@
 import express from "express";
 import cors from "cors";
-import { initDB, getRecords } from "./db.js";
+import { resetDB, initDB, getRecords } from "./db.js";
 import { exportCSV, exportONIX } from "./exportForClients.js";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ingestFile } from "./ingest.js";
 import { ingestOnly, validateOnly, createTraderOnly } from "./ingest.js";
+
 
 
 
@@ -102,6 +103,18 @@ app.post("/pipeline", upload.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("Errore pipeline:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset DB
+app.post("/reset", async (req, res) => {
+  try {
+    await initDB();
+    await resetDB();
+    res.json({ message: "DB azzerato con successo" });
+  } catch (err) {
+    console.error("Errore reset DB:", err);
     res.status(500).json({ error: err.message });
   }
 });

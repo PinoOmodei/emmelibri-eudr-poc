@@ -19,10 +19,19 @@ export async function exportCSV() {
   if (!records.length) throw new Error("Nessun record trovato nel DB");
 
   const lastRun = records[records.length - 1];
-  const lines = ["EAN,TraderReferenceNumber,TraderVerificationNumber"];
+
+  // Raggruppa per EAN
+  const grouped = {};
   lastRun.validated.forEach((row) => {
-    lines.push(`${row.ean},${lastRun.traderDDS.referenceNumber},${lastRun.traderDDS.verificationNumber}`);
+    if (!grouped[row.ean]) grouped[row.ean] = [];
+    grouped[row.ean].push(`${row.referenceNumber}+${row.verificationNumber}`);
   });
+
+  // Costruisci righe CSV
+  const lines = ["EAN,AssociatedDDS"];
+  for (const [ean, ddsList] of Object.entries(grouped)) {
+    lines.push(`${ean},"${ddsList.join("; ")}"`);
+  }
 
   const fileName = `export_${Date.now()}.csv`;
   const filePath = path.join(EXPORT_DIR, fileName);
@@ -37,26 +46,40 @@ export async function exportONIX() {
   if (!records.length) throw new Error("Nessun record trovato nel DB");
 
   const lastRun = records[records.length - 1];
-  const items = lastRun.validated
-    .map((row) => {
-      return `
-    <Product xmlns:eudr="http://www.emmelibri.it/eudr">
-      <RecordReference>${row.ean}</RecordReference>
+
+  // Raggruppa per EAN
+  const grouped = {};
+  lastRun.validated.forEach((row) => {
+    if (!grouped[row.ean]) grouped[row.ean] = [];
+    grouped[row.ean].push({
+      referenceNumber: row.referenceNumber,
+      verificationNumber: row.verificationNumber,
+      netWeightKG: row.netWeightKG || 0
+    });
+  });
+
+  // Costruisci XML ONIX
+  const products = Object.entries(grouped).map(([ean, rows]) => {
+    const ddsXml = rows.map((r) => `
       <eudr:DDSInfo>
-        <eudr:ReferenceNumber>${lastRun.traderDDS.referenceNumber}</eudr:ReferenceNumber>
-        <eudr:VerificationNumber>${lastRun.traderDDS.verificationNumber}</eudr:VerificationNumber>
-        <eudr:NetWeightKG>${row.netWeightKG || 0}</eudr:NetWeightKG>
-      </eudr:DDSInfo>
+        <eudr:ReferenceNumber>${r.referenceNumber}</eudr:ReferenceNumber>
+        <eudr:VerificationNumber>${r.verificationNumber}</eudr:VerificationNumber>
+        <eudr:NetWeightKG>${r.netWeightKG}</eudr:NetWeightKG>
+      </eudr:DDSInfo>`).join("\n");
+
+    return `
+    <Product xmlns:eudr="http://www.emmelibri.it/eudr">
+      <RecordReference>${ean}</RecordReference>
+      ${ddsXml}
     </Product>`;
-    })
-    .join("\n");
+  }).join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage xmlns="http://ns.editeur.org/onix/3.0/reference"
              xmlns:eudr="http://www.emmelibri.it/eudr"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xsi:schemaLocation="http://www.emmelibri.it/eudr schemas/eudr-extension.xsd">
-  ${items}
+  ${products}
 </ONIXMessage>`;
 
   const fileName = `export_${Date.now()}.xml`;
