@@ -1,0 +1,27 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:eudr="http://ec.europa.eu/traces/eudr/ws">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <eudr:SubmitDDSRequest>
+            <dds>
+                <internalReferenceNumber>PROT-2025-0001</internalReferenceNumber>
+                <operatorId>OP-EMMELIBRI</operatorId>
+                <operatorName>Emmelibri S.p.A.</operatorName>
+                <role>TRADER</role>
+                <productId>4902</productId>
+                <productType>Libri</productType>
+                <quantity>1000</quantity>
+                <country>IT</country>
+                <referencedDDS>
+                    <referenceNumber>MOCK-REF-852643</referenceNumber>
+                    <verificationNumber>MOCK-VER-774732</verificationNumber>
+                </referencedDDS>
+                <referencedDDS>
+                    <referenceNumber>MOCK-REF-852644</referenceNumber>
+                    <verificationNumber>MOCK-VER-040702</verificationNumber>
+                </referencedDDS>
+            </dds>
+        </eudr:SubmitDDSRequest>
+    </soapenv:Body>
+</soapenv:Envelope>
+

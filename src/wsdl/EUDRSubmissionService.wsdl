@@ -1,0 +1,94 @@
+<definitions name="EUDRSubmissionService" targetNamespace="http://ec.europa.eu/traces/eudr/ws"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:tns="http://ec.europa.eu/traces/eudr/ws"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <!-- MESSAGGI -->
+    <message name="SubmitDDSRequestMessage">
+        <part name="parameters" element="tns:SubmitDDSRequest"/>
+    </message>
+
+    <message name="SubmitDDSResponseMessage">
+        <part name="parameters" element="tns:SubmitDDSResponse"/>
+    </message>
+
+    <!-- TIPI -->
+    <types>
+        <xsd:schema targetNamespace="http://ec.europa.eu/traces/eudr/ws">
+
+            <!-- Elemento di input -->
+            <xsd:element name="SubmitDDSRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="dds" type="tns:DDS"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- Definizione DDS -->
+            <xsd:complexType name="DDS">
+                <xsd:sequence>
+                    <xsd:element name="internalReferenceNumber" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="operatorId" type="xsd:string"/>
+                    <xsd:element name="operatorName" type="xsd:string"/>
+                    <xsd:element name="role" type="xsd:string"/>
+                    <xsd:element name="productId" type="xsd:string"/>
+                    <xsd:element name="productType" type="xsd:string"/>
+                    <xsd:element name="quantity" type="xsd:int"/>
+                    <xsd:element name="country" type="xsd:string"/>
+                    <xsd:element name="referencedDDS" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:complexType>
+                            <xsd:sequence>
+                                <xsd:element name="referenceNumber" type="xsd:string"/>
+                                <xsd:element name="verificationNumber" type="xsd:string"/>
+                            </xsd:sequence>
+                        </xsd:complexType>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <!-- Elemento di output -->
+            <xsd:element name="SubmitDDSResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="uuid" type="xsd:string"/>
+                        <xsd:element name="referenceNumber" type="xsd:string"/>
+                        <xsd:element name="verificationNumber" type="xsd:string"/>
+                        <xsd:element name="status" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+    </types>
+
+    <!-- PORT TYPE -->
+    <portType name="EUDRSubmissionPortType">
+        <operation name="submitDDS">
+            <input message="tns:SubmitDDSRequestMessage"/>
+            <output message="tns:SubmitDDSResponseMessage"/>
+        </operation>
+    </portType>
+
+    <!-- BINDING -->
+    <binding name="EUDRSubmissionBinding" type="tns:EUDRSubmissionPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="submitDDS">
+            <soap:operation soapAction="submitDDS"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+    </binding>
+
+    <!-- SERVICE -->
+    <service name="EUDRSubmissionService">
+        <port name="EUDRSubmissionPort" binding="tns:EUDRSubmissionBinding">
+            <soap:address location="http://localhost:3000/soap-submission"/>
+        </port>
+    </service>
+</definitions>

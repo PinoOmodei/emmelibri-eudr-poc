@@ -4,8 +4,11 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start:mock": "node src/mockServer.js",
-    "start:server": "node src/server.js"
+    "start:mock:rest": "node src/mockServer.js",
+    "start:mock:soap": "node src/mockServerSOAP.js",
+    "dev:mock:soap": "nodemon src/mockServerSOAP.js",
+    "start:server": "node src/server.js",
+    "start:server:soap": "node src/serverSOAP.js"
   },
   "dependencies": {
     "axios": "^1.7.0",
@@ -14,6 +17,10 @@
     "dotenv": "^16.4.0",
     "express": "^4.21.2",
     "lowdb": "^7.0.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "strong-soap": "^5.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

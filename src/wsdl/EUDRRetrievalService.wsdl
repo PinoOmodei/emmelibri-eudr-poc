@@ -1,0 +1,66 @@
+<definitions name="EUDRRetrievalService"
+             targetNamespace="http://ec.europa.eu/traces/eudr/ws"
+             xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://ec.europa.eu/traces/eudr/ws"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+  <!-- MESSAGGI -->
+  <message name="GetStatementByIdentifiersRequest">
+    <part name="referenceNumber" type="xsd:string"/>
+    <part name="verificationNumber" type="xsd:string"/>
+  </message>
+
+  <message name="GetStatementByIdentifiersResponse">
+    <part name="dds" element="tns:DDS"/>
+  </message>
+
+
+  <!-- TIPI -->
+  <types>
+    <xsd:schema targetNamespace="http://ec.europa.eu/traces/eudr/ws">
+      <xsd:element name="DDS">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="referenceNumber" type="xsd:string"/>
+            <xsd:element name="verificationNumber" type="xsd:string"/>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="operatorId" type="xsd:string"/>
+            <xsd:element name="operatorName" type="xsd:string"/>
+            <xsd:element name="productId" type="xsd:string"/>
+            <xsd:element name="productType" type="xsd:string"/>
+            <xsd:element name="quantity" type="xsd:int"/>
+            <xsd:element name="country" type="xsd:string"/>
+            <xsd:element name="submissionDate" type="xsd:string"/>
+            <xsd:element name="lastModified" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </types>
+
+  <!-- PORT TYPE -->
+  <portType name="EUDRRetrievalPortType">
+    <operation name="getStatementByIdentifiers">
+      <input message="tns:GetStatementByIdentifiersRequest"/>
+      <output message="tns:GetStatementByIdentifiersResponse"/>
+    </operation>
+  </portType>
+
+  <!-- BINDING -->
+  <binding name="EUDRRetrievalBinding" type="tns:EUDRRetrievalPortType">
+    <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="getStatementByIdentifiers">
+      <soap:operation soapAction="getStatementByIdentifiers"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+
+  <!-- SERVICE -->
+  <service name="EUDRRetrievalService">
+    <port name="EUDRRetrievalPort" binding="tns:EUDRRetrievalBinding">
+      <soap:address location="http://localhost:4000/soap"/>
+    </port>
+  </service>
+</definitions>
