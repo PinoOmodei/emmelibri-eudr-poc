@@ -1,6 +1,75 @@
 import { useState } from "react";
 
 export default function ExportPage() {
+  const [message, setMessage] = useState(null);
+  const [files, setFiles] = useState([]);
+
+  const handleExport = (type) => {
+    // per csv e onix apriamo direttamente il download
+    window.open(`/api/export/${type}`, "_blank");
+  };
+
+  const handleExportClients = async () => {
+    setMessage("⏳ Export in corso...");
+    setFiles([]);
+    try {
+      const res = await fetch("/api/export/clients");
+      if (!res.ok) throw new Error("Errore export clienti");
+      const data = await res.json();
+      setMessage(data.message);
+      setFiles(data.files || []);
+    } catch (err) {
+      setMessage("❌ " + err.message);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Export DDS</h1>
+
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => handleExport("csv")}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Export CSV
+        </button>
+        <button
+          onClick={() => handleExport("onix")}
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          Export ONIX
+        </button>
+        <button
+          onClick={handleExportClients}
+          className="bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          Export per Clienti
+        </button>
+      </div>
+
+      {message && <p className="mb-4">{message}</p>}
+
+      {files.length > 0 && (
+        <div className="mt-4">
+          <h2 className="font-semibold mb-2">File generati:</h2>
+          <ul className="list-disc list-inside">
+            {files.map((f, idx) => (
+              <li key={idx}>
+                <span className="font-mono">{f.client}</span> →{" "}
+                <code>{f.file}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/*import { useState } from "react";
+
+export default function ExportPage() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -107,4 +176,4 @@ export default function ExportPage() {
       )}
     </div>
   );
-}
+}*/

@@ -24,6 +24,11 @@ export async function getRecords() {
   return db.data.records;
 }
 
+export async function getRecordById(id) {
+  await db.read();
+  return db.data.records.find(r => r.internalReferenceNumber === id);
+}
+
 export async function resetDB() {
   db.data = { records: [] };
   await db.write();
