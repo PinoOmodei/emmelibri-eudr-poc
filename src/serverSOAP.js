@@ -173,7 +173,7 @@ app.get("/dds/:referenceNumber/:verificationNumber", async (req, res) => {
 
 // --- Endpoint ingest (CSV + SOAP flow) ---
 // Richiede: csv-parser, initDB/saveRecord da db.js, parseCSV(filePath) helper già definita
-app.post("/ap/ingest", upload.single("file"), async (req, res) => {
+app.post("/api/ingest", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Nessun file CSV caricato" });
     const {
