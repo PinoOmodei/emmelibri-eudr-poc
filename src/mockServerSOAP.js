@@ -3,6 +3,8 @@ import path from "path";
 import http from "http";
 import soap from "strong-soap";
 import { parse } from "csv-parse/sync";
+import express from "express";
+import { fileURLToPath } from "url";
 
 const { soap: soapServer } = soap;
 
@@ -180,15 +182,23 @@ const services = {
     }
 };
 
+// ✅ Serve i file WSDL come statici via HTTP
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use("/wsdl", express.static(path.join(__dirname, "wsdl")));
+
 // --- Avvio server SOAP ---
 const server = http.createServer((req, res) =>
     res.end("SOAP server running")
 );
 server.listen(3000, () => {
     console.log("🚀 SOAP Mock TRACES server listening on:");
-    console.log("   Retrieval:  http://localhost:3000/soap");
-    console.log("   Submission: http://localhost:3000/soap-submission");
-    soapServer.listen(server, "/soap", services, wsdlRetrieval);
-    soapServer.listen(server, "/soap-submission", services, wsdlSubmission);
+    console.log("   Retrieval (SOAP):  http://localhost:3000/soap/retrieval");
+    console.log("   Submission (SOAP): http://localhost:3000/soap/submission");
+    console.log(`   WSDL (static)): http://localhost:3000/wsdl/`);
+    soapServer.listen(server, "/soap/retrieval", services, wsdlRetrieval);
+    soapServer.listen(server, "/soap/submission", services, wsdlSubmission);
 });
 

@@ -30,21 +30,18 @@ const upload = multer({ dest: path.join(__dirname, "..", "uploads/") });
 app.use(cors());
 app.use(express.json());
 
-// ✅ Serve i file WSDL come statici via HTTP
-app.use("/wsdl", express.static(path.join(__dirname, "wsdl")));
-
 // Endpoint di test
 app.get("/", (req, res) => {
   res.send("✅ Emmelibri EUDR PoC API SOAP Adapter attivo");
 });
 
 // --- URL dei WSDL esposti via HTTP ---
-const wsdlSubmissionHttpUrl = `http://localhost:${PORT}/wsdl/EUDRSubmissionService.wsdl`;
-const wsdlRetrievalHttpUrl = `http://localhost:${PORT}/wsdl/EUDRRetrievalService.wsdl`;
+const wsdlSubmissionHttpUrl = `http://localhost:4000/wsdl/EUDRSubmissionService.wsdl`;
+const wsdlRetrievalHttpUrl = `http://localhost:4000/wsdl/EUDRRetrievalService.wsdl`;
 
 // --- Endpoint SOAP del mock ---
-const SOAP_URL_SUBMIT = "http://localhost:3000/soap-submission";
-const SOAP_URL_RETRIEVE = "http://localhost:3000/soap";
+const SOAP_URL_SUBMIT = "http://localhost:3000/soap/submission";
+const SOAP_URL_RETRIEVE = "http://localhost:3000/soap/retrieval";
 
 // --- Helpers ---
 function generateInternalReference() {
@@ -102,8 +99,8 @@ app.post("/dds/submit", async (req, res) => {
 
       client.setEndpoint(SOAP_URL_SUBMIT);
 
-      /* 🔎 Log XML inviato e risposta grezza
-      client.on("request", (xml) => {
+      // 🔎 Log XML inviato e risposta grezza
+      /*client.on("request", (xml) => {
         console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
       });
       client.on("response", (body, response) => {
@@ -194,6 +191,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
         ddsMap[key] = {
           referenceNumber: rec.referenceNumber,
           verificationNumber: rec.verificationNumber,
+          quantity: Number(rec.netWeightKG || 0),
           eanList: []
         };
       }
@@ -215,15 +213,15 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
           if (e1) return resolve({ ok: false, statusDetail: normalizeFaultReason(e1) });
           client.setEndpoint(SOAP_URL_RETRIEVE);
 
-          /* Log SOAP per debug
-          client.on("request", (xml) => {
-            console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
+          // Log SOAP per debug
+          /*client.on("request", (xml) => {
+            console.log("➡️  SOAP REQUEST (retreiveDDS):\n", xml);
           });
           client.on("response", (body, response) => {
             console.log("⬅️  SOAP RESPONSE (raw): status", response && response.statusCode, "\n", body);
           });
           client.on("soapError", (e) => {
-            console.error("💥 SOAP FAULT (submitDDS):", e && (e.body || e));
+            console.error("💥 SOAP FAULT (retreiveDDS):", e && (e.body || e));
           });*/
 
           client.getStatementByIdentifiers({ referenceNumber, verificationNumber }, (e2, resSoap) => {
@@ -253,6 +251,8 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
 
     // 3) Crea DDS TRADER con referencedDDS validi
     const internalRef = `ING-${Date.now()}`;
+    const totalQuantity = validDDS.reduce((acc, d) => acc + Number(d.quantity || 0), 0);
+
     const traderRequest = {
       SubmitDDSRequest: {
         dds: {
@@ -262,6 +262,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
           role,
           productId,
           productName,
+          quantity: totalQuantity,   // 👈 aggiunta
           referencedDDS: validDDS.map(d => ({
             referenceNumber: d.referenceNumber,
             verificationNumber: d.verificationNumber
@@ -275,8 +276,8 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
         if (e1) return reject(e1);
         client.setEndpoint(SOAP_URL_SUBMIT);
 
-        /* Log SOAP per debug
-        client.on("request", (xml) => {
+        // Log SOAP per debug
+        /*client.on("request", (xml) => {
           console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
         });
         client.on("response", (body, response) => {
@@ -294,6 +295,21 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
     });
 
     // 4) Costruisce record ingestion per DB
+
+    // Costruisci set degli EAN coperti da DDS valide
+    const eanWithValid = new Set();
+    for (const d of validDDS) {
+      for (const ean of d.eanList) {
+        eanWithValid.add(ean);
+      }
+    }
+
+    // Classifica tutti gli EAN
+    const eanList = Array.from(new Set(records.map(r => r.EAN))).map(ean => ({
+      ean,
+      hasValidDDS: eanWithValid.has(ean)
+    }));
+
     const ingestionRecord = {
       internalReferenceNumber: internalRef,
       timestamp: new Date().toISOString(),
@@ -322,7 +338,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
           eanList: d.eanList
         }))
       ],
-      eanList: Array.from(new Set(records.map(r => r.EAN))).map(ean => ({ ean }))
+      eanList
     };
 
     await initDB();
@@ -348,104 +364,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
   }
 });
 
-/*app.post("/api/ingest", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "Nessun file CSV caricato" });
-
-    const {
-      operatorId = "OP-EMMELIBRI",
-      operatorName = "Emmelibri S.p.A.",
-      role = "TRADER",
-      productId = "490199",
-      productName = "Books",
-    } = req.body;
-
-    const records = await parseCSV(req.file.path);
-
-    // 1) Validazione DDS fornitore
-    const validDDS = [];
-    const invalidDDS = [];
-
-    for (const rec of records) {
-      const request = { referenceNumber: rec.referenceNumber, verificationNumber: rec.verificationNumber };
-      const result = await new Promise((resolve, reject) => {
-        soapClient.createClient(wsdlRetrievalHttpUrl, {}, (err, client) => {
-          if (err) return reject(err);
-          client.setEndpoint(SOAP_URL_RETRIEVE);
-          client.getStatementByIdentifiers(request, (err, res) => {
-            if (err) return reject(err);
-            resolve(res.GetStatementByIdentifiersResponse?.dds || res.dds);
-          });
-        });
-      });
-
-      if (result && result.status === "VALID") {
-        validDDS.push({ ...rec, status: "VALID" });
-      } else {
-        invalidDDS.push({ ...rec, status: "INVALID" });
-      }
-    }
-
-    // 2) Creazione DDS TRADER con i validi
-    const traderRequest = {
-      SubmitDDSRequest: {
-        dds: {
-          internalReferenceNumber: `ING-${Date.now()}`,
-          operatorId,
-          operatorName,
-          role,
-          productId,
-          productName,
-          referencedDDS: validDDS.map(d => ({
-            referenceNumber: d.referenceNumber,
-            verificationNumber: d.verificationNumber
-          }))
-        }
-      }
-    };
-
-    const traderDDS = await new Promise((resolve, reject) => {
-      soapClient.createClient(wsdlSubmissionHttpUrl, {}, (err, client) => {
-        if (err) return reject(err);
-        client.setEndpoint(SOAP_URL_SUBMIT);
-        client.submitDDS(traderRequest, (err, result) => {
-          if (err) return reject(err);
-          resolve(result.SubmitDDSResponse || result);
-        });
-      });
-    });
-
-    // 3) Costruzione record ingestion (minimale)
-    const ingestionRecord = {
-      internalReferenceNumber: traderRequest.SubmitDDSRequest.dds.internalReferenceNumber,
-      timestamp: new Date().toISOString(),
-      ddsTrader: {
-        referenceNumber: traderDDS.referenceNumber,
-        status: traderDDS.status,
-        referencedDDS: validDDS.map(d => d.referenceNumber)
-      },
-      ddsFornitore: [
-        ...validDDS.map(d => ({ referenceNumber: d.referenceNumber, status: "VALID" })),
-        ...invalidDDS.map(d => ({ referenceNumber: d.referenceNumber, status: "INVALID" }))
-      ],
-      eanList: records.map(r => ({ ean: r.EAN }))
-    };
-
-    await initDB();
-    await saveRecord(ingestionRecord);
-
-    res.json({
-      message: "✅ Ingest completata",
-      ingestion: ingestionRecord
-    });
-
-  } catch (err) {
-    console.error("❌ Errore ingest:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-*/
-
+app.use("/wsdl", express.static(path.join(__dirname, "wsdl")));
 
 // --- Endpoint Storico ingestion (lista) ---
 app.get("/api/ingestions", async (req, res) => {
@@ -542,5 +461,4 @@ app.get("/api/export/:type", async (req, res) => {
 // Avvio server
 app.listen(PORT, () => {
   console.log(`🚀 ServerSOAP avviato su http://localhost:${PORT}`);
-  console.log(`   WSDL disponibili su: http://localhost:${PORT}/wsdl/`);
 });

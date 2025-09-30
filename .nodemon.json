@@ -1,0 +1,6 @@
+{
+  "watch": ["src"],
+  "ignore": ["db.json", "TRACES-DDS.csv", "EXPORT/*"],
+  "ext": "js,json",
+  "exec": "node src/mockServerSOAP.js"
+}
