@@ -2,10 +2,13 @@ import { useState } from "react";
 import IngestPage from "./pages/IngestPage";
 import RecordsPage from "./pages/RecordsPage";
 import ExportPage from "./pages/ExportPage";
+import ApiDemoPage from "./pages/ApiDemoPage";
 import Navbar from "./components/Navbar";
 
 function App() {
   const [page, setPage] = useState("ingest");
+  console.log("Pagina corrente:", page);
+
 
   let content;
   switch (page) {
@@ -14,6 +17,9 @@ function App() {
       break;
     case "export":
       content = <ExportPage />;
+      break;
+    case "api-demo":
+      content = <ApiDemoPage />;
       break;
     default:
       content = <IngestPage />;

@@ -457,6 +457,51 @@ app.get("/api/export/:type", async (req, res) => {
   }
 });
 
+// --- Endpoint REST: restituisce DDS TRADER per uno o più EAN (solo se VALID) ---
+app.post("/api/trader-dds", async (req, res) => {
+  try {
+    const { eans } = req.body;
+    if (!Array.isArray(eans)) {
+      return res.status(400).json({ error: "Parametro 'eans' deve essere un array" });
+    }
+
+    await initDB();
+    const records = await getRecords();
+
+    // Costruisci mappa EAN -> DDS TRADER (come in exportForClients.js)
+    const grouped = {};
+    records.forEach((ing) => {
+      ing.eanList
+        .filter((e) => e.hasValidDDS) // solo EAN validi
+        .forEach((row) => {
+          if (!grouped[row.ean]) grouped[row.ean] = [];
+          const ddsInfo = {
+            referenceNumber: ing.ddsTrader.referenceNumber,
+            verificationNumber: ing.ddsTrader.verificationNumber,
+          };
+          if (
+            !grouped[row.ean].some(
+              (r) => r.referenceNumber === ddsInfo.referenceNumber
+            )
+          ) {
+            grouped[row.ean].push(ddsInfo);
+          }
+        });
+    });
+
+    // Filtra solo quelli richiesti in input
+    const result = eans.map((ean) => ({
+      ean,
+      ddsTrader: grouped[ean] || [],
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Errore in /api/trader-dds:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Avvio server
 app.listen(PORT, () => {
