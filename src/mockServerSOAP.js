@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 const { soap: soapServer } = soap;
 
 // --- Caricamento DDS da CSV ---
-const csvPath = "./TRACES-DDS.csv";
+const csvPath = "./INPUT/TRACES-DDS.csv";
 let store = {};
 
 function loadStore() {
