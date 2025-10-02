@@ -4,6 +4,7 @@ export default function Navbar({ onNavigate, current }) {
     { key: "records", label: "Storico" },
     { key: "export", label: "Export" },
     { key: "api-demo", label: "Demo API" },
+    { key: "onix-validator", label: "ONIX+ Validator" },
   ];
 
   return (

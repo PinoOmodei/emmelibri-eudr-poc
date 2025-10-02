@@ -7,6 +7,7 @@ import { initDB, getRecords, saveRecord, getRecordById } from "./db.js";
 import fs from "fs";
 import csvParser from "csv-parser"; // per leggere input.csv
 import { exportCSV, exportONIX, exportForClientsAll } from "./exportForClients.js";
+import { execFile } from "child_process";
 
 
 // strong-soap è CommonJS → import come default e destruttura
@@ -502,6 +503,34 @@ app.post("/api/trader-dds", async (req, res) => {
   }
 });
 
+// Endpoint di validazione ONIX + EUDR usando xmllint di sistema
+app.post("/api/validate-onix", upload.single("file"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nessun file ONIX caricato" });
+    }
+
+    const schemaPath = path.join(__dirname, "..", "public", "schemas", "onix-eudr-wrapper.xsd");
+    const xmlPath = req.file.path;
+
+    execFile("xmllint", ["--noout", "--schema", schemaPath, xmlPath], (error, stdout, stderr) => {
+      if (error) {
+        // xmllint restituisce errore di validazione come exitCode ≠ 0
+        return res.status(400).json({
+          valid: false,
+          errors: stderr
+            .split("\n")
+            .filter(line => line.trim().length > 0)
+        });
+      }
+
+      res.json({ valid: true, message: "✅ File ONIX valido rispetto a ONIX+EUDR" });
+    });
+  } catch (err) {
+    console.error("❌ Errore generale validazione ONIX:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {

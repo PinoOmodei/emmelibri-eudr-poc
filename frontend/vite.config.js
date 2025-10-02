@@ -10,6 +10,11 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  optimizeDeps: {
+    exclude: ['xmllint-wasm'], // evita pre-bundling che rompe il worker
+  },
+  worker: {
+    format: 'es', // importante per i web worker modulo
   }
 })
-

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:onix="http://ns.editeur.org/onix/3.0/reference"
+           xmlns:eudr="http://www.emmelibri.it/eudr"
+           targetNamespace="http://ns.editeur.org/onix/3.0/reference"
+           elementFormDefault="qualified">
+
+  <!-- include lo schema ONIX standard -->
+  <xs:include schemaLocation="onix-main.xsd"/>
+
+  <!-- import dello schema EUDR -->
+  <xs:import namespace="http://www.emmelibri.it/eudr"
+             schemaLocation="eudr-extension.xsd"/>
+
+</xs:schema>

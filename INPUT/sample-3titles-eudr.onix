@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ONIXMessage xmlns="http://ns.editeur.org/onix/3.0/reference" xmlns:eudr="http://www.emmelibri.it/eudr" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.emmelibri.it/eudr schemas/eudr-extension.xsd">
+  <Product xmlns:eudr="http://www.emmelibri.it/eudr">
+    <RecordReference>9788800001001</RecordReference>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781234567890</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <SequenceNumber>1</SequenceNumber>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>Titolo di esempio</TitleText>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Mario Rossi</PersonName>
+      </Contributor>
+      <Extent>
+        <ExtentType>11</ExtentType>
+        <ExtentValue>256</ExtentValue>
+        <ExtentUnit>03</ExtentUnit>
+      </Extent>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>FIC000000</SubjectCode>
+      </Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Editore Demo</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublisherName>Casa Editrice Demo</PublisherName>
+      </Publisher>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20251002</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber></eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2001</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1002</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2002</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+  </Product>
+  <Product>
+    <RecordReference>9788800001002</RecordReference>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9789876543210</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <SequenceNumber>1</SequenceNumber>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>Il secondo libro</TitleText>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Giulia Bianchi</PersonName>
+      </Contributor>
+      <Extent>
+        <ExtentType>11</ExtentType>
+        <ExtentValue>320</ExtentValue>
+        <ExtentUnit>03</ExtentUnit>
+      </Extent>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>HIS000000</SubjectCode>
+      </Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Editore Demo</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublisherName>Casa Editrice Demo</PublisherName>
+      </Publisher>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20251002</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1002</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2002</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1003</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2003</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1004</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2004</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+  </Product>
+  <Product>
+    <RecordReference>9788800001003</RecordReference>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781111111111</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <SequenceNumber>1</SequenceNumber>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>Il terzo volume</TitleText>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Luca Verdi</PersonName>
+      </Contributor>
+      <Extent>
+        <ExtentType>11</ExtentType>
+        <ExtentValue>198</ExtentValue>
+        <ExtentUnit>03</ExtentUnit>
+      </Extent>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>SCI000000</SubjectCode>
+      </Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Editore Demo</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublisherName>Casa Editrice Demo</PublisherName>
+      </Publisher>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20251002</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1001</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2001</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+    <eudr:DDSInfo>
+      <eudr:ReferenceNumber>REF-1005</eudr:ReferenceNumber>
+      <eudr:VerificationNumber>VER-2005</eudr:VerificationNumber>
+    </eudr:DDSInfo>
+  </Product>
+</ONIXMessage>

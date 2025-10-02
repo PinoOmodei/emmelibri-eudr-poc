@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://ns.editeur.org/onix/3.0/reference"
+           xmlns="http://ns.editeur.org/onix/3.0/reference"
+           elementFormDefault="qualified">
+
+  <xs:annotation>
+    <xs:documentation>Schema semplificato di ONIX 3.0 per test. In produzione va sostituito con quello ufficiale di EDItEUR.</xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="ONIXMessage" type="xs:anyType"/>
+
+</xs:schema>

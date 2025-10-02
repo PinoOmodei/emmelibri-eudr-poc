@@ -46,7 +46,8 @@ Content-Type: application/json
     return (
         <div className="max-w-5xl mx-auto">
             <h1 className="text-2xl font-bold mb-6 text-brand">Demo API Trader DDS</h1>
-
+            <h4>Utile per esportare "al volo" le DDS abbinate agli EAN di un nostro DDT Ciente</h4>
+            <p>-----------</p>
             <div className="mb-4">
                 <p className="mb-2">EAN disponibili:</p>
                 <div className="flex flex-wrap gap-2">
@@ -64,6 +65,7 @@ Content-Type: application/json
             </div>
 
             <h3 className="font-semibold mb-2">Richiesta API</h3>
+            
             <pre
                 className="bg-black text-white font-normal font-mono p-4 rounded mb-4 text-sm cursor-pointer border border-gray-700"
                 onClick={() => navigator.clipboard.writeText(requestExample)}

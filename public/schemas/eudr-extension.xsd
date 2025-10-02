@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  eudr-extension.xsd
+  Generated on 2025-10-02
+  Namespace for EUDR extension elements used alongside ONIX 3.0.
+  This schema defines the custom elements referenced in your ONIX exports.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.emmelibri.it/eudr"
+  xmlns:eudr="http://www.emmelibri.it/eudr" elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.0">
+
+  <xs:annotation>
+    <xs:documentation xml:lang="it">
+      Namespace di estensione EUDR per ONIX 3.0.
+      Include l'elemento principale eudr:DDSInfo con due figli obbligatori:
+      eudr:ReferenceNumber ed eudr:VerificationNumber.
+      Può essere inserito, come estensione, all'interno di &lt;Product&gt; nei messaggi ONIX.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Tipi semplici con vincoli leggeri (solo trimming e lunghezza minima) -->
+  <xs:simpleType name="ReferenceNumberType">
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="collapse"/>
+      <xs:pattern value="\S+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="VerificationNumberType">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Tipo complesso per il blocco DDSInfo -->
+  <xs:complexType name="DDSInfoType">
+    <xs:sequence>
+      <xs:element name="ReferenceNumber" type="eudr:ReferenceNumberType"/>
+      <xs:element name="VerificationNumber" type="eudr:VerificationNumberType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Elemento radice riusabile nelle liste per prodotto -->
+  <xs:element name="DDSInfo" type="eudr:DDSInfoType">
+    <xs:annotation>
+      <xs:documentation xml:lang="it">
+        Coppia (ReferenceNumber, VerificationNumber) di una DDS associata al prodotto.
+        Ripetibile per elencare più DDS nello stesso &lt;Product&gt;.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+</xs:schema>

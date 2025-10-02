@@ -1,0 +1,17 @@
+Per integrare la nuova pagina Validatore ONIX + EUDR:
+
+1. Copia OnixValidatorPage.jsx in src/pages/ del frontend.
+
+2. In App.jsx aggiungi il route:
+   import OnixValidatorPage from "./pages/OnixValidatorPage";
+   ...
+   <Route path="/onix-validator" element={<OnixValidatorPage />} />
+
+3. In Navbar.jsx aggiungi la voce di menu:
+   <NavLink to="/onix-validator">ONIX Validator</NavLink>
+
+4. Metti i file .xsd nella cartella public/schemas/:
+   - onix-main.xsd
+   - eudr-extension.xsd
+
+5. Usa il file sample-3titles-eudr.onix come test di caricamento.

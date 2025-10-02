@@ -4,6 +4,8 @@ import RecordsPage from "./pages/RecordsPage";
 import ExportPage from "./pages/ExportPage";
 import ApiDemoPage from "./pages/ApiDemoPage";
 import Navbar from "./components/Navbar";
+import OnixValidatorPage from "./pages/OnixValidatorPage";
+
 
 function App() {
   const [page, setPage] = useState("ingest");
@@ -20,6 +22,9 @@ function App() {
       break;
     case "api-demo":
       content = <ApiDemoPage />;
+      break;
+    case "onix-validator":
+      content = <OnixValidatorPage />;
       break;
     default:
       content = <IngestPage />;
