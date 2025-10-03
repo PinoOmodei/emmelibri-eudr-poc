@@ -44,7 +44,7 @@
       </PublishingDate>
     </PublishingDetail>
     <eudr:DDSInfo>
-      <eudr:ReferenceNumber></eudr:ReferenceNumber>
+      <eudr:ReferenceNumber>REF-001</eudr:ReferenceNumber>
       <eudr:VerificationNumber>VER-2001</eudr:VerificationNumber>
     </eudr:DDSInfo>
     <eudr:DDSInfo>

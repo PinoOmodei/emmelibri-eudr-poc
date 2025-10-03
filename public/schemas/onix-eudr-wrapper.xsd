@@ -6,7 +6,7 @@
            elementFormDefault="qualified">
 
   <!-- include lo schema ONIX standard -->
-  <xs:include schemaLocation="onix-main.xsd"/>
+  <xs:include schemaLocation="ONIX_BookProduct_3.0_reference.xsd"/>
 
   <!-- import dello schema EUDR -->
   <xs:import namespace="http://www.emmelibri.it/eudr"

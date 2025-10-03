@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Placeholder per ONIX_BookProduct_3.0_reference.xsd -->
+<!-- Scaricare l'XSD ufficiale da EDItEUR (https://www.editeur.org/93/Release-3.0-Downloads/) -->
+<!-- Questo file va sostituito con la versione originale -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://ns.editeur.org/onix/3.0/reference"
+           xmlns="http://ns.editeur.org/onix/3.0/reference"
+           elementFormDefault="qualified">
+  <xs:annotation>
+    <xs:documentation>ONIX 3.0 Reference schema (placeholder)</xs:documentation>
+  </xs:annotation>
+  <xs:element name="ONIXMessage" type="xs:anyType"/>
+</xs:schema>
