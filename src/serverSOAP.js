@@ -8,7 +8,8 @@ import fs from "fs";
 import csvParser from "csv-parser"; // per leggere input.csv
 import { exportCSV, exportONIX, exportForClientsAll } from "./exportForClients.js";
 import { execFile } from "child_process";
-
+import soap from "soap";
+import dotenv from "dotenv";
 
 // strong-soap è CommonJS → import come default e destruttura
 import pkg from "strong-soap";
@@ -61,117 +62,236 @@ async function parseCSV(filePath) {
   });
 }
 
-// --- Endpoint DDS: Submit ---
-app.post("/dds/submit", async (req, res) => {
-  try {
-    const {
-      operatorId,
-      operatorName,
-      role,
-      productId,
-      productType,
-      quantity,
-      country,
-      referencedDDS
-    } = req.body;
-
-    // ✅ Wrapper corretto come da WSDL: SubmitDDSRequest → dds
-    const request = {
-      SubmitDDSRequest: {
-        dds: {
-          internalReferenceNumber: generateInternalReference(),
-          operatorId: operatorId || "OP-EMMELIBRI",
-          operatorName: operatorName || "Emmelibri S.p.A.",
-          role: role || "TRADER",
-          productId: productId || "4902",
-          productType: productType || "Libri",
-          quantity: quantity || 1,
-          country: country || "IT",
-          referencedDDS: referencedDDS || []
-        }
-      }
-    };
-
-    soapClient.createClient(wsdlSubmissionHttpUrl, {}, (err, client) => {
-      if (err) {
-        console.error("❌ Errore in createClient (submitDDS):", err);
-        return reject(err);
-      }
-
-      client.setEndpoint(SOAP_URL_SUBMIT);
-
-      // 🔎 Log XML inviato e risposta grezza
-      /*client.on("request", (xml) => {
-        console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
-      });
-      client.on("response", (body, response) => {
-        console.log("⬅️  SOAP RESPONSE (raw): status", response && response.statusCode, "\n", body);
-      });
-      client.on("soapError", (e) => {
-        console.error("💥 SOAP FAULT (submitDDS):", e && (e.body || e));
-      });*/
-
-      // Chiamata SOAP
-      client.submitDDS(request, (err, result) => {
-        if (err) {
-          console.error("❌ Errore SOAP submitDDS:", err);
-          return res.status(500).json({ error: err.message });
-        }
-
-        // Alcuni client restituiscono result.SubmitDDSResponse, altri già "flat"
-        const payload = result.SubmitDDSResponse || result;
-
-        res.json({
-          message: "✅ Submit DDS completata",
-          internalReferenceNumber: request.SubmitDDSRequest.dds.internalReferenceNumber,
-          result: payload
-        });
-      });
-    });
-  } catch (err) {
-    console.error("❌ Errore generale submitDDS:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Endpoint DDS: Retrieve ---
-app.get("/dds/:referenceNumber/:verificationNumber", async (req, res) => {
-  try {
-    const { referenceNumber, verificationNumber } = req.params;
-    const request = { referenceNumber, verificationNumber };
-
-    soapClient.createClient(wsdlRetrievalHttpUrl, {}, (err, client) => {
-      if (err) {
-        console.error("❌ Errore in createClient (retrieveDDS):", err);
-        return reject(err);
-      }
-
-      client.setEndpoint(SOAP_URL_RETRIEVE);
-
-      client.getStatementByIdentifiers(request, (err, result) => {
-        if (err) {
-          console.error("❌ Errore SOAP getStatementByIdentifiers:", err);
-          return res.status(500).json({ error: err.message });
-        }
-
-        const payload =
-          result.GetStatementByIdentifiersResponse?.dds || result.dds;
-
-        res.json({
-          message: "✅ Retrieve DDS completata",
-          result: payload
-        });
-      });
-    });
-  } catch (err) {
-    console.error("❌ Errore generale getStatementByIdentifiers:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // --- Endpoint ingest (CSV + SOAP flow) ---
 // Richiede: csv-parser, initDB/saveRecord da db.js, parseCSV(filePath) helper già definita
+
+dotenv.config(); // Carica .env con le variabili TRACES
+
+// --- Endpoint ingest (CSV + SOAP verso TRACES) ---
 app.post("/api/ingest", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nessun file CSV caricato" });
+    }
+
+    // === Variabili TRACES da .env ===
+    const {
+      EUDR_RETRIEVE_WSDL,
+      EUDR_SUBMIT_WSDL,
+      EUDR_AUTH_KEY,
+      EUDR_USERNAME,
+      EUDR_CLIENT_ID,
+      EUDR_OPERATOR_ID,
+      EUDR_OPERATOR_NAME,
+      EUDR_OPERATOR_VAT,
+      EUDR_OPERATOR_ADDRESS,
+      EUDR_OPERATOR_EMAIL,
+      EUDR_OPERATOR_PHONE,
+      EUDR_COUNTRY
+    } = process.env;
+
+    // === Helper per lettura CSV ===
+    const parseCSV = (filePath) =>
+      new Promise((resolve, reject) => {
+        const results = [];
+        fs.createReadStream(filePath)
+          .pipe(csvParser())
+          .on("data", (data) => results.push(data))
+          .on("end", () => resolve(results))
+          .on("error", reject);
+      });
+
+    const records = await parseCSV(req.file.path);
+
+    // Raggruppa righe per Reference+Verification
+    const ddsMap = {};
+    for (const rec of records) {
+      const key = `${rec.referenceNumber}-${rec.verificationNumber}`;
+      if (!ddsMap[key]) {
+        ddsMap[key] = {
+          referenceNumber: rec.referenceNumber,
+          verificationNumber: rec.verificationNumber,
+          quantity: Number(rec.copies || 0),
+          eanList: []
+        };
+      }
+      ddsMap[key].eanList.push(rec.EAN);
+    }
+    console.log(ddsMap);
+
+    // === 1. Validazione DDS fornitore su TRACES (getStatementByIdentifiers) ===
+    console.log("➡️  Creazione client SOAP Retrieval...");
+    const clientRetrieve = await soap.createClientAsync(EUDR_RETRIEVE_WSDL);
+    const wsSecurityRetrieve = new soap.WSSecurity(EUDR_USERNAME, EUDR_AUTH_KEY, {
+      passwordType: "PasswordDigest",
+    });
+    clientRetrieve.setSecurity(wsSecurityRetrieve);
+    clientRetrieve.addSoapHeader(
+      { "base:WebServiceClientId": EUDR_CLIENT_ID },
+      "",
+      "base",
+      "http://ec.europa.eu/sanco/tracesnt/base/v4"
+    );
+
+    const validDDS = [];
+    const invalidDDS = [];
+
+    for (const key of Object.keys(ddsMap)) {
+      const d = ddsMap[key];
+      try {
+        // chiamata al ws SOAP: ottimzzare con una chiamata sola con tutti i DDS da verificare
+        const [result, rawResponse, soapHeader, rawRequest] = await clientRetrieve.getStatementByIdentifiersAsync({
+          referenceNumber: d.referenceNumber,
+          verificationNumber: d.verificationNumber,
+        });
+
+        // DEBUG: scommentare per vedere i messaggi SOAP a console
+        // console.log("📨 Request SOAP:", rawRequest);
+        // console.log("📩 Response SOAP:", rawResponse);
+
+        // Validazione (per ora, solo status == AVAILABLE)
+        // Estrarre il nodo statement
+        const statement =
+          result?.GetStatementByIdentifiersResponse?.statement ||
+          result?.statement ||
+          result;
+
+        // Estrarre lo stato: TRACES incapsula <status><status>AVAILABLE</status></status>
+        const statusValue =
+          statement?.status?.status ||
+          statement?.status ||
+          statement?.Status ||
+          statement?.Status?.status ||
+          "UNKNOWN";
+
+        console.log(`🧾 DDS ${d.referenceNumber}: stato=${statusValue}`);
+
+        if (["AVAILABLE", "VALID", "SUBMITTED", "REGISTERED", "CONFIRMED"].includes(statusValue.toUpperCase())) {
+          validDDS.push({ ...d, status: statusValue });
+        } else {
+          invalidDDS.push({ ...d, status: statusValue });
+        }
+      } catch (err) {
+        invalidDDS.push({
+          ...d,
+          status: "INVALID",
+          statusDetail: err.message || "SOAP_FAULT",
+        });
+      }
+    }
+
+    // === 2. Costruzione richiesta TRADER (submitDds) ===
+    if (validDDS.length === 0) {
+      return res.status(400).json({
+        error: "Nessun DDS valido trovato su TRACES",
+      });
+    }
+
+    const referencedDDS = validDDS.map((v) => ({
+      referenceNumber: v.referenceNumber,
+      verificationNumber: v.verificationNumber,
+    }));
+
+    const INTERNAL_REF = `ING-${Date.now()}`;
+    const TOTAL_QUANTITY = validDDS.reduce(
+      (sum, v) => sum + (Number(v.quantity) || 0),
+      0
+    );
+
+    console.log("➡️  Creazione client SOAP Submission...");
+    const clientSubmit = await soap.createClientAsync(EUDR_SUBMIT_WSDL);
+    const wsSecuritySubmit = new soap.WSSecurity(EUDR_USERNAME, EUDR_AUTH_KEY, {
+      passwordType: "PasswordDigest",
+    });
+    clientSubmit.setSecurity(wsSecuritySubmit);
+    clientSubmit.addSoapHeader(
+      { "base:WebServiceClientId": EUDR_CLIENT_ID },
+      "",
+      "base",
+      "http://ec.europa.eu/sanco/tracesnt/base/v4"
+    );
+
+    console.log("➡️  Invocazione submitDds (Trader, referenced DDS)...");
+
+    const args = {
+      operatorType: "OPERATOR",
+      statement: {
+        internalReferenceNumber: INTERNAL_REF,
+        activityType: "DOMESTIC",
+        operator: {
+          referenceNumber: [
+            { identifierType: "vat", identifierValue: EUDR_OPERATOR_VAT || "IT04640860153" },
+          ],
+          nameAndAddress: {
+            "base:name": EUDR_OPERATOR_NAME || "Emmelibri S.p.A.",
+            "base:country": EUDR_COUNTRY || "IT",
+            "base:address": EUDR_OPERATOR_ADDRESS || "Via G. Verdi, 8, 20057 Assago (MI)",
+          },
+          email: EUDR_OPERATOR_EMAIL || "info@example.com",
+          phone: EUDR_OPERATOR_PHONE || "+390000000000",
+        },
+        countryOfActivity: EUDR_COUNTRY || "IT",
+        commodities: [
+          {
+            position: 1,
+            descriptors: {
+              descriptionOfGoods: "Books",
+              goodsMeasure: {
+                supplementaryUnit: String(TOTAL_QUANTITY || "1"),
+                supplementaryUnitQualifier: "NAR",
+              },
+            },
+            hsHeading: "4901",
+          },
+        ],
+        geoLocationConfidential: true,
+        associatedStatements: referencedDDS,
+      },
+    };
+
+    const [submitResult, rawResponse, soapHeader, rawRequest] =
+      await clientSubmit.submitDdsAsync(args);
+
+    const responseDDS =
+      submitResult?.SubmitDdsResponse || submitResult?.submitDdsResponse || submitResult;
+
+    console.log("✅ Risultato submitDds:", JSON.stringify(responseDDS, null, 2));
+
+    // === 3. Salvataggio risultato ingestion ===
+    await initDB();
+    await saveRecord({
+      internalReferenceNumber: INTERNAL_REF,
+      timestamp: new Date().toISOString(),
+      ddsTrader: {
+        referenceNumber: responseDDS?.referenceNumber || null,
+        verificationNumber: responseDDS?.verificationNumber || null,
+        status: responseDDS?.status || "SUBMITTED",
+        referencedDDS,
+      },
+      ddsFornitore: [
+        ...validDDS.map((d) => ({ ...d, status: "VALID" })),
+        ...invalidDDS.map((d) => ({ ...d, status: "INVALID" })),
+      ],
+    });
+
+    // === 4. Risposta REST finale ===
+    res.json({
+      message: "✅ Ingest completata su TRACES",
+      traderDDS: responseDDS,
+      summary: {
+        totalDDS: Object.keys(ddsMap).length,
+        valid: validDDS.length,
+        invalid: invalidDDS.length,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Errore ingest globale:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+/* app.post("/api/ingest", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Nessun file CSV caricato" });
     const {
@@ -215,7 +335,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
           client.setEndpoint(SOAP_URL_RETRIEVE);
 
           // Log SOAP per debug
-          /*client.on("request", (xml) => {
+          /client.on("request", (xml) => {
             console.log("➡️  SOAP REQUEST (retreiveDDS):\n", xml);
           });
           client.on("response", (body, response) => {
@@ -223,7 +343,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
           });
           client.on("soapError", (e) => {
             console.error("💥 SOAP FAULT (retreiveDDS):", e && (e.body || e));
-          });*/
+          });/
 
           client.getStatementByIdentifiers({ referenceNumber, verificationNumber }, (e2, resSoap) => {
             if (e2) return resolve({ ok: false, statusDetail: normalizeFaultReason(e2) });
@@ -278,7 +398,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
         client.setEndpoint(SOAP_URL_SUBMIT);
 
         // Log SOAP per debug
-        /*client.on("request", (xml) => {
+        /client.on("request", (xml) => {
           console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
         });
         client.on("response", (body, response) => {
@@ -286,7 +406,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
         });
         client.on("soapError", (e) => {
           console.error("💥 SOAP FAULT (submitDDS):", e && (e.body || e));
-        });*/
+        });/
 
         client.submitDDS(traderRequest, (e2, result) => {
           if (e2) return reject(e2);
@@ -364,6 +484,7 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+*/
 
 app.use("/wsdl", express.static(path.join(__dirname, "wsdl")));
 
