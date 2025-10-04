@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { initDB, getRecords } from "./db.js";
+import { initDB, getRecords, updateRecordTraderRefVer } from "./db.js";
+import soap from "soap";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +17,53 @@ if (!fs.existsSync(EXPORT_DIR)) {
   fs.mkdirSync(EXPORT_DIR);
 }
 
+// --- Funzione di supporto: recupera da TRACES i dati DDS (Reference Number e Verification Code) 
+async function fetchRefVerFromTraces(ddsIdentifier) {
+  try {
+    const { EUDR_RETRIEVE_WSDL, EUDR_USERNAME, EUDR_AUTH_KEY, EUDR_CLIENT_ID } = process.env;
+    const client = await soap.createClientAsync(EUDR_RETRIEVE_WSDL);
+
+    // WS-Security
+    const wsSecurity = new soap.WSSecurity(EUDR_USERNAME, EUDR_AUTH_KEY, {
+      passwordType: "PasswordDigest"
+    });
+    client.setSecurity(wsSecurity);
+
+    // Header con ClientId
+    client.addSoapHeader(
+      { "base:WebServiceClientId": EUDR_CLIENT_ID },
+      "",
+      "base",
+      "http://ec.europa.eu/sanco/tracesnt/base/v4"
+    );
+
+    // ✅ Metodo esposto nel WSDL, ma risponde con GetStatementInfoResponse
+    const [result, rawResponse, soapHeader, rawRequest] = await client.getDdsInfoAsync({
+      identifier: [ddsIdentifier]
+    });
+
+    // 🔍 Estrazione flessibile
+    const info =
+      result?.GetStatementInfoResponse?.statementInfo ||
+      result?.GetDdsInfoResponse?.statementInfo?.[0] ||
+      result?.statementInfo?.[0] ||
+      result?.statementInfo ||
+      result;
+
+    const ref = info?.referenceNumber || null;
+    const ver = info?.verificationNumber || null;
+    const status = info?.status || "UNKNOWN";
+
+    console.log(`🔍 TRACES → ${ddsIdentifier}: REF=${ref} VER=${ver} STATUS=${status}`);
+
+    return { referenceNumber: ref, verificationNumber: ver, status };
+  } catch (err) {
+    console.error(`❌ Errore getDdsInfo(${ddsIdentifier}):`, err.message);
+    return { referenceNumber: null, verificationNumber: null, status: "ERROR" };
+  }
+}
+
+
 // --- Funzione di supporto: costruisce la mappa EAN → DDS TRADER (da tutte le ingestion)
 async function buildGrouped() {
   await initDB();
@@ -19,20 +71,45 @@ async function buildGrouped() {
   if (!records.length) throw new Error("Nessuna ingestion trovata nel DB");
 
   const grouped = {};
-  records.forEach((ing) => {
+
+  for (const ing of records) {
+    const trader = ing.ddsTrader || {};
+
+    // 🔎 Se mancano i codici TRACES ma abbiamo ddsIdentifier, recuperali ora
+    if ((!trader.referenceNumber || !trader.verificationNumber) && trader.ddsIdentifier) {
+      const latest = await fetchRefVerFromTraces(trader.ddsIdentifier);
+      if (latest.referenceNumber && latest.verificationNumber) {
+        console.log(`🔄 Aggiornato ${trader.ddsIdentifier}: ${latest.referenceNumber}/${latest.verificationNumber}`);
+        // Aggiorna in memoria
+        trader.referenceNumber = latest.referenceNumber;
+        trader.verificationNumber = latest.verificationNumber;
+        trader.status = latest.status;
+        // Aggiorna anche nel DB
+        await updateRecordTraderRefVer(ing.internalReferenceNumber, latest.referenceNumber, latest.verificationNumber, latest.status);
+      } else {
+        console.log(`⚠️ Nessun codice ancora disponibile per ${trader.ddsIdentifier}`);
+      }
+    }
+
+    // ❌ Salta le DDS ancora senza codici TRACES
+    if (!trader.referenceNumber || !trader.verificationNumber) continue;
+
+    // 🔗 Costruisci la mappa EAN -> DDS TRADER
     ing.eanList
-      .filter(e => e.hasValidDDS)   // 👈 qui il filtro corretto
-      .forEach((row) => {
+      .filter(e => e.hasValidDDS)
+      .forEach(row => {
         if (!grouped[row.ean]) grouped[row.ean] = [];
         const ddsInfo = {
-          referenceNumber: ing.ddsTrader.referenceNumber,
-          verificationNumber: ing.ddsTrader.verificationNumber
+          referenceNumber: trader.referenceNumber,
+          verificationNumber: trader.verificationNumber,
+          status: trader.status
         };
         if (!grouped[row.ean].some(r => r.referenceNumber === ddsInfo.referenceNumber)) {
           grouped[row.ean].push(ddsInfo);
         }
       });
-  });
+  }
+
   return grouped;
 }
 

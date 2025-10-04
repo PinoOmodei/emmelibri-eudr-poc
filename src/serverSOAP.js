@@ -258,21 +258,49 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
     console.log("✅ Risultato submitDds:", JSON.stringify(responseDDS, null, 2));
 
     // === 3. Salvataggio risultato ingestion ===
-    await initDB();
-    await saveRecord({
+
+    // --- Lettura campi restituiti da TRACES ---
+    const ddsIdentifier =
+      responseDDS?.ddsIdentifier ||
+      responseDDS?.uuid || // compatibilità con mock
+      null;
+
+    // Costruire l’elenco EAN complessivo e marcare quelli coperti da DDS valide
+    const eanWithValid = new Set();
+    validDDS.forEach(d => (d.eanList || []).forEach(e => eanWithValid.add(e)));
+
+    const allEans = Array.from(
+      new Set(
+        [...validDDS, ...invalidDDS].flatMap(d => d.eanList || [])
+      )
+    );
+
+    const eanList = allEans.map(ean => ({
+      ean,
+      hasValidDDS: eanWithValid.has(ean)
+    }));
+
+    // --- Costruzione record per il DB ---
+    const record = {
       internalReferenceNumber: INTERNAL_REF,
       timestamp: new Date().toISOString(),
       ddsTrader: {
+        ddsIdentifier,
         referenceNumber: responseDDS?.referenceNumber || null,
         verificationNumber: responseDDS?.verificationNumber || null,
         status: responseDDS?.status || "SUBMITTED",
-        referencedDDS,
+        referencedDDS
       },
       ddsFornitore: [
-        ...validDDS.map((d) => ({ ...d, status: "VALID" })),
-        ...invalidDDS.map((d) => ({ ...d, status: "INVALID" })),
+        ...validDDS.map(d => ({ ...d, status: "VALID" })),
+        ...invalidDDS.map(d => ({ ...d, status: "INVALID" }))
       ],
-    });
+      eanList
+    };
+
+    // --- Salvataggio come prima ---
+    await initDB();
+    await saveRecord(record);
 
     // === 4. Risposta REST finale ===
     res.json({
@@ -291,201 +319,6 @@ app.post("/api/ingest", upload.single("file"), async (req, res) => {
 });
 
 
-/* app.post("/api/ingest", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "Nessun file CSV caricato" });
-    const {
-      operatorId = "OP-EMMELIBRI",
-      operatorName = "Emmelibri S.p.A.",
-      role = "TRADER",
-      productId = "490199",
-      productName = "Books",
-    } = req.body;
-
-    const records = await parseCSV(req.file.path);
-
-    // 1) Raggruppa per (referenceNumber+verificationNumber) e accumula EAN
-    const ddsMap = {};
-    for (const rec of records) {
-      const key = `${rec.referenceNumber}-${rec.verificationNumber}`;
-      if (!ddsMap[key]) {
-        ddsMap[key] = {
-          referenceNumber: rec.referenceNumber,
-          verificationNumber: rec.verificationNumber,
-          quantity: Number(rec.netWeightKG || 0),
-          eanList: []
-        };
-      }
-      ddsMap[key].eanList.push(rec.EAN);
-    }
-
-    // Helper: normalizza il motivo dell'invalidità da un SOAP fault
-    const normalizeFaultReason = (err) => {
-      const raw = String((err && (err.body || err.message)) || err || "").toUpperCase();
-      if (raw.includes("NOT FOUND")) return "NOT_FOUND";
-      if (raw.includes("INVALID")) return "INVALID";
-      return "SOAP_FAULT";
-    };
-
-    // Helper: chiama retrieve una sola volta per DDS e NON rigetta su fault
-    async function retrieveDDSOnce(referenceNumber, verificationNumber) {
-      return new Promise((resolve) => {
-        soapClient.createClient(wsdlRetrievalHttpUrl, {}, (e1, client) => {
-          if (e1) return resolve({ ok: false, statusDetail: normalizeFaultReason(e1) });
-          client.setEndpoint(SOAP_URL_RETRIEVE);
-
-          // Log SOAP per debug
-          /client.on("request", (xml) => {
-            console.log("➡️  SOAP REQUEST (retreiveDDS):\n", xml);
-          });
-          client.on("response", (body, response) => {
-            console.log("⬅️  SOAP RESPONSE (raw): status", response && response.statusCode, "\n", body);
-          });
-          client.on("soapError", (e) => {
-            console.error("💥 SOAP FAULT (retreiveDDS):", e && (e.body || e));
-          });/
-
-          client.getStatementByIdentifiers({ referenceNumber, verificationNumber }, (e2, resSoap) => {
-            if (e2) return resolve({ ok: false, statusDetail: normalizeFaultReason(e2) });
-            const dds = resSoap?.GetStatementByIdentifiersResponse?.dds || resSoap?.dds;
-            if (!dds) return resolve({ ok: false, statusDetail: "NO_RESPONSE" });
-            if (dds.status === "VALID") return resolve({ ok: true, dds });
-            return resolve({ ok: false, statusDetail: "INVALID" });
-          });
-        });
-      });
-    }
-
-    // 2) Valida ogni DDS (no duplicati)
-    const validDDS = [];
-    const invalidDDS = [];
-
-    for (const key of Object.keys(ddsMap)) {
-      const dds = ddsMap[key];
-      const outcome = await retrieveDDSOnce(dds.referenceNumber, dds.verificationNumber);
-      if (outcome.ok) {
-        validDDS.push({ ...dds, status: "VALID" });
-      } else {
-        invalidDDS.push({ ...dds, status: "INVALID", statusDetail: outcome.statusDetail });
-      }
-    }
-
-    // 3) Crea DDS TRADER con referencedDDS validi
-    const internalRef = `ING-${Date.now()}`;
-    const totalQuantity = validDDS.reduce((acc, d) => acc + Number(d.quantity || 0), 0);
-
-    const traderRequest = {
-      SubmitDDSRequest: {
-        dds: {
-          internalReferenceNumber: internalRef,
-          operatorId,
-          operatorName,
-          role,
-          productId,
-          productName,
-          quantity: totalQuantity,   // 👈 aggiunta
-          referencedDDS: validDDS.map(d => ({
-            referenceNumber: d.referenceNumber,
-            verificationNumber: d.verificationNumber
-          }))
-        }
-      }
-    };
-
-    const traderDDS = await new Promise((resolve, reject) => {
-      soapClient.createClient(wsdlSubmissionHttpUrl, {}, (e1, client) => {
-        if (e1) return reject(e1);
-        client.setEndpoint(SOAP_URL_SUBMIT);
-
-        // Log SOAP per debug
-        /client.on("request", (xml) => {
-          console.log("➡️  SOAP REQUEST (submitDDS):\n", xml);
-        });
-        client.on("response", (body, response) => {
-          console.log("⬅️  SOAP RESPONSE (raw): status", response && response.statusCode, "\n", body);
-        });
-        client.on("soapError", (e) => {
-          console.error("💥 SOAP FAULT (submitDDS):", e && (e.body || e));
-        });/
-
-        client.submitDDS(traderRequest, (e2, result) => {
-          if (e2) return reject(e2);
-          resolve(result.SubmitDDSResponse || result);
-        });
-      });
-    });
-
-    // 4) Costruisce record ingestion per DB
-
-    // Costruisci set degli EAN coperti da DDS valide
-    const eanWithValid = new Set();
-    for (const d of validDDS) {
-      for (const ean of d.eanList) {
-        eanWithValid.add(ean);
-      }
-    }
-
-    // Classifica tutti gli EAN
-    const eanList = Array.from(new Set(records.map(r => r.EAN))).map(ean => ({
-      ean,
-      hasValidDDS: eanWithValid.has(ean)
-    }));
-
-    const ingestionRecord = {
-      internalReferenceNumber: internalRef,
-      timestamp: new Date().toISOString(),
-      ddsTrader: {
-        referenceNumber: traderDDS.referenceNumber,
-        verificationNumber: traderDDS.verificationNumber,
-        status: traderDDS.status,
-        referencedDDS: validDDS.map(d => ({
-          referenceNumber: d.referenceNumber,
-          verificationNumber: d.verificationNumber
-        }))
-      },
-      // NB: qui manteniamo EAN per ciascun DDS fornitore, senza duplicati di DDS
-      ddsFornitore: [
-        ...validDDS.map(d => ({
-          referenceNumber: d.referenceNumber,
-          verificationNumber: d.verificationNumber,
-          status: "VALID",
-          eanList: d.eanList
-        })),
-        ...invalidDDS.map(d => ({
-          referenceNumber: d.referenceNumber,
-          verificationNumber: d.verificationNumber,
-          status: "INVALID",
-          statusDetail: d.statusDetail,   // <- evidenzia NOT_FOUND / INVALID / SOAP_FAULT / NO_RESPONSE
-          eanList: d.eanList
-        }))
-      ],
-      eanList
-    };
-
-    await initDB();
-    await saveRecord(ingestionRecord);
-
-    // 5) Risposta con summary che evidenzia i NOT_FOUND
-    const notFoundCount = invalidDDS.filter(d => d.statusDetail === "NOT_FOUND").length;
-    res.json({
-      message: "✅ Ingest completata",
-      summary: {
-        totalDDS: Object.keys(ddsMap).length,
-        valid: validDDS.length,
-        invalid: invalidDDS.length,
-        invalid_not_found: notFoundCount
-      },
-      ingestion: ingestionRecord
-    });
-
-  } catch (err) {
-    console.error("❌ Errore ingest globale:", err);
-    if (err?.stack) console.error("Stack:", err.stack);
-    res.status(500).json({ error: err.message });
-  }
-});
-*/
-
 app.use("/wsdl", express.static(path.join(__dirname, "wsdl")));
 
 // --- Endpoint Storico ingestion (lista) ---
@@ -494,12 +327,27 @@ app.get("/api/ingestions", async (req, res) => {
     await initDB();
     const records = await getRecords();
 
-    const summaries = (records || []).map(r => ({
-      internalReferenceNumber: r.internalReferenceNumber || "N/A",
-      timestamp: r.timestamp || "N/A",
-      totalEAN: Array.isArray(r.eanList) ? r.eanList.length : 0,
-      ddsTraderStatus: r.ddsTrader?.status || "UNKNOWN"
-    }));
+    const summaries = (records || []).map(r => {
+      const trader = r.ddsTrader || {};
+      const hasCodes = trader.referenceNumber && trader.verificationNumber;
+      const displayId = trader.ddsIdentifier || trader.referenceNumber || "N/A";
+
+      // Se non ha ancora codici TRACES, mostra dicitura amichevole
+      let statusLabel;
+      if (!hasCodes) {
+        statusLabel = `In attesa codici TRACES (status: ${trader.status || "SUBMITTED"})`;
+      } else {
+        statusLabel = trader.status || "UNKNOWN";
+      }
+
+      return {
+        internalReferenceNumber: r.internalReferenceNumber || "N/A",
+        timestamp: r.timestamp || "N/A",
+        ddsIdentifier: displayId,   // 👈 aggiunto UUID TRACES
+        totalEAN: Array.isArray(r.eanList) ? r.eanList.length : 0,
+        ddsTraderStatus: statusLabel
+      };
+    });
 
     res.json(summaries);
   } catch (err) {
@@ -523,9 +371,13 @@ app.get("/api/ingestions/:id", async (req, res) => {
       internalReferenceNumber: record.internalReferenceNumber || "N/A",
       timestamp: record.timestamp || "N/A",
       ddsTrader: {
+        ddsIdentifier: record.ddsTrader?.ddsIdentifier || "N/A",
         referenceNumber: record.ddsTrader?.referenceNumber || "N/A",
         verificationNumber: record.ddsTrader?.verificationNumber || "N/A",
-        status: record.ddsTrader?.status || "UNKNOWN",
+        status:
+          !record.ddsTrader?.referenceNumber || !record.ddsTrader?.verificationNumber
+            ? `In attesa codici TRACES (status: ${record.ddsTrader?.status || "SUBMITTED"})`
+            : record.ddsTrader?.status || "UNKNOWN",
         referencedDDS: Array.isArray(record.ddsTrader?.referencedDDS)
           ? record.ddsTrader.referencedDDS
           : []
@@ -540,7 +392,10 @@ app.get("/api/ingestions/:id", async (req, res) => {
         }))
         : [],
       eanList: Array.isArray(record.eanList)
-        ? record.eanList.map(e => ({ ean: e.ean || "N/A" }))
+        ? record.eanList.map(e => ({
+          ean: e.ean || "N/A",
+          hasValidDDS: !!e.hasValidDDS
+        }))
         : []
     };
 
@@ -598,8 +453,10 @@ app.post("/api/trader-dds", async (req, res) => {
         .forEach((row) => {
           if (!grouped[row.ean]) grouped[row.ean] = [];
           const ddsInfo = {
+            ddsIdentifier: ing.ddsTrader.ddsIdentifier,
             referenceNumber: ing.ddsTrader.referenceNumber,
             verificationNumber: ing.ddsTrader.verificationNumber,
+            status: ing.ddsTrader.status
           };
           if (
             !grouped[row.ean].some(

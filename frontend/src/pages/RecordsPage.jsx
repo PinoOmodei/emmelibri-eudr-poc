@@ -56,163 +56,196 @@ export default function RecordsPage() {
                 <>
                   <tr
                     key={ing.internalReferenceNumber}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    className={`
+                      ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                      ${ing.ddsTraderStatus?.includes("In attesa") ? "opacity-80" : ""}
+                    `}
                   >
                     <td className="px-4 py-2 border-t font-mono">
-                      {ing.internalReferenceNumber}
+                      {ing.ddsIdentifier
+                        ? ing.ddsIdentifier
+                        : ing.internalReferenceNumber}
                     </td>
+
                     <td className="px-4 py-2 border-t">
                       {new Date(ing.timestamp).toLocaleString()}
                     </td>
                     <td className="px-4 py-2 border-t">{ing.totalEAN}</td>
                     <td className="px-4 py-2 border-t">
                       <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          ing.ddsTraderStatus === "SUBMITTED"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : ing.ddsTraderStatus === "VALID"
+                        className={`px-2 py-1 rounded text-xs font-medium ${ing.ddsTraderStatus?.includes("In attesa")
+                          ? "bg-yellow-100 text-yellow-800"
+                          : ing.ddsTraderStatus?.toUpperCase().includes("VALID")
                             ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                            : ing.ddsTraderStatus?.toUpperCase().includes("SUBMITTED")
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
                       >
                         {ing.ddsTraderStatus}
                       </span>
-                    </td>
-                    <td className="px-4 py-2 border-t">
-                      <button
-                        onClick={() => toggleExpand(idx, ing.internalReferenceNumber)}
-                        className="text-brand hover:underline"
-                      >
-                        {expandedIndex === idx ? "Nascondi" : "Dettagli"}
-                      </button>
-                    </td>
-                  </tr>
+                  </td>
+                  <td className="px-4 py-2 border-t">
+                    <button
+                      onClick={() => toggleExpand(idx, ing.internalReferenceNumber)}
+                      className="text-brand hover:underline"
+                    >
+                      {expandedIndex === idx ? "Nascondi" : "Dettagli"}
+                    </button>
+                  </td>
+                </tr >
 
-                  {expandedIndex === idx && (
-                    <tr>
-                      <td colSpan="5" className="p-4 bg-gray-50 border-t">
-                        {loadingDetail ? (
-                          <p className="text-gray-500">Caricamento dettagli…</p>
-                        ) : detail ? (
-                          <div>
-                            <h3 className="font-semibold text-gray-700 mb-2">
-                              DDS TRADER
-                            </h3>
-                            <pre className="bg-white p-2 mb-4 text-xs border">
-                              {JSON.stringify(detail.ddsTrader, null, 2)}
-                            </pre>
+                { expandedIndex === idx && (
+                <tr>
+                  <td colSpan="5" className="p-4 bg-gray-50 border-t">
+                    {loadingDetail ? (
+                      <p className="text-gray-500">Caricamento dettagli…</p>
+                    ) : detail ? (
+                      <div>
+                        <h3 className="font-semibold text-gray-700 mb-2">
+                          DDS TRADER
+                        </h3>
+                        <table className="text-xs mb-4 border border-gray-200 rounded w-full">
+                          <tbody>
+                            <tr>
+                              <td className="px-2 py-1 border font-medium text-gray-600 w-40">UUID</td>
+                              <td className="px-2 py-1 border">{detail.ddsTrader.ddsIdentifier || "—"}</td>
+                            </tr>
+                            <tr>
+                              <td className="px-2 py-1 border font-medium text-gray-600">Reference</td>
+                              <td className="px-2 py-1 border">
+                                {detail.ddsTrader.referenceNumber || (
+                                  <span className="text-yellow-700">In attesa codici TRACES</span>
+                                )}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-2 py-1 border font-medium text-gray-600">Verification</td>
+                              <td className="px-2 py-1 border">
+                                {detail.ddsTrader.verificationNumber || (
+                                  <span className="text-yellow-700">—</span>
+                                )}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-2 py-1 border font-medium text-gray-600">Stato</td>
+                              <td className="px-2 py-1 border">
+                                {detail.ddsTrader.status || "UNKNOWN"}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
 
-                            <h3 className="font-semibold text-gray-700 mb-2">
-                              DDS Fornitore
-                            </h3>
-                            {detail.ddsFornitore.length > 0 ? (
-                              <table className="w-full text-xs border border-gray-200 rounded mb-4">
-                                <thead className="bg-gray-100">
-                                  <tr>
-                                    <th className="px-2 py-1 border">Reference</th>
-                                    <th className="px-2 py-1 border">Verification</th>
-                                    <th className="px-2 py-1 border">Stato</th>
-                                    <th className="px-2 py-1 border">EAN</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {detail.ddsFornitore.map((d, j) => (
-                                    <tr
-                                      key={j}
-                                      className="odd:bg-white even:bg-gray-50"
-                                    >
-                                      <td className="px-2 py-1 border">{d.referenceNumber}</td>
-                                      <td className="px-2 py-1 border">{d.verificationNumber}</td>
-                                      <td
-                                        className={`px-2 py-1 border font-medium ${
-                                          d.status === "VALID"
+                        <h3 className="font-semibold text-gray-700 mb-2">
+                          DDS Fornitore
+                        </h3>
+                        {detail.ddsFornitore.length > 0 ? (
+                          <table className="w-full text-xs border border-gray-200 rounded mb-4">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-2 py-1 border">Reference</th>
+                                <th className="px-2 py-1 border">Verification</th>
+                                <th className="px-2 py-1 border">Stato</th>
+                                <th className="px-2 py-1 border">EAN</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {detail.ddsFornitore.map((d, j) => (
+                                <tr
+                                  key={j}
+                                  className="odd:bg-white even:bg-gray-50"
+                                >
+                                  <td className="px-2 py-1 border">{d.referenceNumber}</td>
+                                  <td className="px-2 py-1 border">{d.verificationNumber}</td>
+                                  <td
+                                    className={`px-2 py-1 border font-medium ${d.status === "VALID"
+                                      ? "text-green-700"
+                                      : "text-red-700"
+                                      }`}
+                                  >
+                                    {d.status}
+                                    {d.statusDetail ? ` (${d.statusDetail})` : ""}
+                                  </td>
+                                  <td className="px-2 py-1 border">
+                                    {d.eanList?.join(", ")}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-gray-500 text-sm">
+                            Nessuna DDS fornitore salvata.
+                          </p>
+                        )}
+
+                        <h3 className="font-semibold text-gray-700 mb-2">
+                          EAN associati
+                        </h3>
+                        <table className="w-full text-xs border border-gray-200 rounded mb-4">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 border">EAN</th>
+                              <th className="px-2 py-1 border">DDS Associati</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detail.eanList.map((e, i) => {
+                              // Trova i DDS che includono questo EAN
+                              const associatedDDS = detail.ddsFornitore.filter(d =>
+                                d.eanList.includes(e.ean)
+                              );
+
+                              // Colore condizionale
+                              const allValid = associatedDDS.length > 0 && associatedDDS.every(d => d.status === "VALID");
+                              const noneValid = associatedDDS.length > 0 && associatedDDS.every(d => d.status !== "VALID");
+                              const rowClass = allValid
+                                ? "text-green-700"
+                                : noneValid
+                                  ? "text-red-700"
+                                  : "text-yellow-700";
+
+                              return (
+                                <tr key={i} className="odd:bg-white even:bg-gray-50">
+                                  <td className={`px-2 py-1 border font-medium ${rowClass}`}>
+                                    {e.ean}
+                                  </td>
+                                  <td className="px-2 py-1 border">
+                                    {associatedDDS.length > 0 ? (
+                                      associatedDDS.map((d, j) => (
+                                        <span
+                                          key={j}
+                                          className={`mr-2 ${d.status === "VALID"
                                             ? "text-green-700"
                                             : "text-red-700"
-                                        }`}
-                                      >
-                                        {d.status}
-                                        {d.statusDetail ? ` (${d.statusDetail})` : ""}
-                                      </td>
-                                      <td className="px-2 py-1 border">
-                                        {d.eanList?.join(", ")}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            ) : (
-                              <p className="text-gray-500 text-sm">
-                                Nessuna DDS fornitore salvata.
-                              </p>
-                            )}
-
-                            <h3 className="font-semibold text-gray-700 mb-2">
-                              EAN associati
-                            </h3>
-                            <table className="w-full text-xs border border-gray-200 rounded mb-4">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-2 py-1 border">EAN</th>
-                                  <th className="px-2 py-1 border">DDS Associati</th>
+                                            }`}
+                                        >
+                                          {d.referenceNumber}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-red-700">Nessuna DDS</span>
+                                    )}
+                                  </td>
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {detail.eanList.map((e, i) => {
-                                  // Trova i DDS che includono questo EAN
-                                  const associatedDDS = detail.ddsFornitore.filter(d =>
-                                    d.eanList.includes(e.ean)
-                                  );
-
-                                  // Colore condizionale
-                                  const allValid = associatedDDS.length > 0 && associatedDDS.every(d => d.status === "VALID");
-                                  const noneValid = associatedDDS.length > 0 && associatedDDS.every(d => d.status !== "VALID");
-                                  const rowClass = allValid
-                                    ? "text-green-700"
-                                    : noneValid
-                                    ? "text-red-700"
-                                    : "text-yellow-700";
-
-                                  return (
-                                    <tr key={i} className="odd:bg-white even:bg-gray-50">
-                                      <td className={`px-2 py-1 border font-medium ${rowClass}`}>
-                                        {e.ean}
-                                      </td>
-                                      <td className="px-2 py-1 border">
-                                        {associatedDDS.length > 0 ? (
-                                          associatedDDS.map((d, j) => (
-                                            <span
-                                              key={j}
-                                              className={`mr-2 ${
-                                                d.status === "VALID"
-                                                  ? "text-green-700"
-                                                  : "text-red-700"
-                                              }`}
-                                            >
-                                              {d.referenceNumber}
-                                            </span>
-                                          ))
-                                        ) : (
-                                          <span className="text-red-700">Nessuna DDS</span>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <p className="text-red-500">Errore caricamento dettaglio.</p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-red-500">Errore caricamento dettaglio.</p>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </>
               ))}
-            </tbody>
-          </table>
+          </tbody>
+        </table>
         </div>
-      )}
-    </div>
+  )
+}
+    </div >
   );
 }

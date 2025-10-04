@@ -50,7 +50,7 @@ export default function IngestPage() {
       const data = await res.json();
       setResult(data);
 
-      const ref = data.ingestion?.internalReferenceNumber || "N/D";
+      const ref = data.ingestion?.ddsIdentifier || "N/D";
       showToast(`Ingest completata – Ingestion ${ref} salvata`, "success");
     } catch (err) {
       setResult({ error: err.message });

@@ -34,3 +34,16 @@ export async function resetDB() {
   await db.write();
   console.log("✅ db.json azzerato");
 }
+
+export async function updateRecordTraderRefVer(internalRef, ref, ver, status) {
+  const db = await initDB();
+  const records = await db.get("records"); // o il nome della collezione/tabella
+  const rec = records.find(r => r.internalReferenceNumber === internalRef);
+  if (rec) {
+    rec.ddsTrader.referenceNumber = ref;
+    rec.ddsTrader.verificationNumber = ver;
+    rec.ddsTrader.status = status;
+    await db.set("records", records);
+  }
+}
+
