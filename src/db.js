@@ -36,14 +36,15 @@ export async function resetDB() {
 }
 
 export async function updateRecordTraderRefVer(internalRef, ref, ver, status) {
-  const db = await initDB();
-  const records = await db.get("records"); // o il nome della collezione/tabella
-  const rec = records.find(r => r.internalReferenceNumber === internalRef);
-  if (rec) {
-    rec.ddsTrader.referenceNumber = ref;
-    rec.ddsTrader.verificationNumber = ver;
-    rec.ddsTrader.status = status;
-    await db.set("records", records);
+  await initDB(); // legge il file e prepara db.data
+  const record = db.data.records.find(r => r.internalReferenceNumber === internalRef);
+  if (record) {
+    record.ddsTrader.referenceNumber = ref;
+    record.ddsTrader.verificationNumber = ver;
+    record.ddsTrader.status = status;
+    await db.write(); // salva le modifiche su file
+    console.log(`✅ Record ${internalRef} aggiornato`);
+  } else {
+    console.warn(`⚠️ Nessun record trovato con internalReferenceNumber=${internalRef}`);
   }
 }
-

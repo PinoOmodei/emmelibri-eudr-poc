@@ -1,6 +1,7 @@
 export default function Navbar({ onNavigate, current }) {
   const tabs = [
-    { key: "ingest", label: "Ingest" },
+        { key: "ingest", label: "Ingest" },
+    { key: "ingest-csv", label: "Ingest CSV" },
     { key: "records", label: "Storico" },
     { key: "export", label: "Export" },
     { key: "api-demo", label: "Demo API" },

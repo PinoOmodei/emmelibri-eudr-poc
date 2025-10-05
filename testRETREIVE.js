@@ -56,8 +56,8 @@ async function main() {
 
         console.log("✅ Risultato Retrieve (Internal Reference):", JSON.stringify(resultRef, null, 2));
 
-        // DEBUG: console.log("📨 Request SOAP:", rawRequest);
-        // DEBUG: console.log("📩 Response SOAP:", rawResponse);
+        console.log("📨 Request SOAP:", rawRequest);
+        console.log("📩 Response SOAP:", rawResponse);
 
     } catch (err) {
         console.error("❌ Errore durante il test RETRIEVE:", err);

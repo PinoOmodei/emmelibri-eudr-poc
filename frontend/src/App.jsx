@@ -1,5 +1,6 @@
 import { useState } from "react";
-import IngestPage from "./pages/IngestPage";
+import IngestCsvPage from "./pages/IngestPage";
+import IngestInteractivePage from "./pages/IngestInteractivePage";
 import RecordsPage from "./pages/RecordsPage";
 import ExportPage from "./pages/ExportPage";
 import ApiDemoPage from "./pages/ApiDemoPage";
@@ -14,6 +15,9 @@ function App() {
 
   let content;
   switch (page) {
+    case "ingest-csv":
+      content = <IngestCsvPage />;
+      break;
     case "records":
       content = <RecordsPage />;
       break;
@@ -27,7 +31,7 @@ function App() {
       content = <OnixValidatorPage />;
       break;
     default:
-      content = <IngestPage />;
+      content = <IngestInteractivePage />;
   }
 
   return (

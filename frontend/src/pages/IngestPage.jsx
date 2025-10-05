@@ -50,8 +50,8 @@ export default function IngestPage() {
       const data = await res.json();
       setResult(data);
 
-      const ref = data.ingestion?.ddsIdentifier || "N/D";
-      showToast(`Ingest completata – Ingestion ${ref} salvata`, "success");
+      const ref = data.traderDDS?.ddsIdentifier || "N/D";
+      showToast(`Ingest completata – DDS Trader ${ref} salvata`, "success");
     } catch (err) {
       setResult({ error: err.message });
       showToast("Errore ingest: " + err.message, "error");
