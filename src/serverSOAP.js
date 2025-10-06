@@ -200,10 +200,10 @@ async function processIngest(ddsMap, source = "CSV") {
   console.log("➡️  Invocazione submitDds (Trader, referenced DDS)...");
 
   const args = {
-    operatorType: "OPERATOR",
+    operatorType: "TRADER",
     statement: {
       internalReferenceNumber: INTERNAL_REF,
-      activityType: "DOMESTIC",
+      activityType: "TRADE",
       operator: {
         referenceNumber: [
           {
