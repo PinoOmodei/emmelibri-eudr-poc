@@ -119,9 +119,11 @@ export default function IngestInteractivePage() {
         return { ddsFornitore, eanList, source: "TRACES" };
     };
 
-    // 🔹 Submit ingest TRADER
+    // 🔹 Submit ingest TRADER (con feedback utente)
     const handleSubmit = async () => {
         const payload = buildPreviewJSON();
+        setLoading(true);
+        document.body.style.cursor = "wait"; // ⏳ cambia puntatore
         try {
             const res = await fetch("/api/ingest/traces", {
                 method: "POST",
@@ -130,7 +132,6 @@ export default function IngestInteractivePage() {
             });
 
             if (!res.ok) {
-                // prova a leggere il JSON di errore
                 let backendError = "Errore sconosciuto dal backend";
                 try {
                     const errData = await res.json();
@@ -146,9 +147,11 @@ export default function IngestInteractivePage() {
         } catch (err) {
             console.error("❌ Errore durante l'ingest:", err);
             alert(`❌ Errore durante l'invio al backend:\n\n${err.message}`);
+        } finally {
+            setLoading(false);
+            document.body.style.cursor = "default"; // 🔚 ripristina cursore
         }
     };
-
 
     // 🔹 Reset
     const handleReset = () => {
@@ -387,16 +390,30 @@ export default function IngestInteractivePage() {
             </section>
 
             {/* === Azioni finali === */}
-            <section className="flex gap-4">
+            <section className="flex gap-4 items-center">
                 <button
                     onClick={handleSubmit}
-                    className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+                    disabled={loading}
+                    className={`px-6 py-2 rounded text-white flex items-center justify-center gap-2 ${loading
+                            ? "bg-gray-400 cursor-wait"
+                            : "bg-green-600 hover:bg-green-700"
+                        }`}
                 >
-                    🚀 Avvia ingest TRADER
+                    {loading ? (
+                        <>
+                            <span className="animate-spin border-2 border-t-transparent border-white rounded-full w-4 h-4"></span>
+                            Ingest in corso…
+                        </>
+                    ) : (
+                        <>🚀 Avvia ingest TRADER</>
+                    )}
                 </button>
+
                 <button
                     onClick={handleReset}
-                    className="bg-gray-300 text-gray-800 px-6 py-2 rounded hover:bg-gray-400"
+                    disabled={loading}
+                    className={`bg-gray-300 text-gray-800 px-6 py-2 rounded hover:bg-gray-400 ${loading ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
                 >
                     🔄 Reset
                 </button>
